@@ -13,7 +13,7 @@
 ### 甘和君
 - 开发协作agent。正式发布在初发平台上。
 - 完成并且优化项目方案书及对应PPT,准备在下周一课上报告。
-- 确定最终功能清单，创建并编写 `/docs/project-management/functional-spec.md`。包含用户故事、功能点列表。
+- ~~确定最终功能清单，创建并编写 `/docs/project-management/functional-spec.md`。包含用户故事、功能点列表。~~
 - 编写推荐模块API接口文档。创建并编写 `/docs/api/recommendation.md`。推荐系统的完整API接口说明
 - ~~完成项目完整结构的构建~~
 - 制作第六周周报与第七周安排。创建并编写 `/docs/project-management/weekly-plans/week-07.md`。
@@ -66,6 +66,7 @@
 - **`/docs` 目录** 下包含完整的功能清单、API文档和数据库设计。
 - **`/cpp_core` 目录** 下的代码可以通过 `cmake` 和 `make` 成功编译。
 - **`/backend` 目录** 拥有一个结构清晰的Flask应用包。
+
 
 
 
