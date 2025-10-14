@@ -25,6 +25,7 @@
 - 实现图类基础方法。创建并实现 `/cpp_core/src/graph/` 下的源文件。`graph.cpp`, `vertex.cpp`, `edge.cpp` (类的基础实现，如添加顶点、边)。
 - 创建C++模块构建配置。创建 `/cpp_core/CMakeLists.txt`。确保C++项目能成功编译。
 ### 刘永琰
+- 开发协作agent。正式发布在初发平台上。
 - 设计数据库ER图。创建并编写 `/docs/database/er_diagram.md`。可描述核心表关系，附示意图或Mermaid代码。
 - 创建MySQL表结构脚本。 创建并编写 `/docs/database/schema.sql`。创建 `users`, `attractions`, `routes`, `diaries` 等核心表的SQL。
 - 编写场所查询API文档。 创建并编写 `/docs/api/place-query.md`。邻近查询、类别过滤等接口说明。
@@ -33,6 +34,7 @@
 
 
 ### 唐士淼
+- 开发文档制作agent。正式发布在初发平台上。
 - 搭建Vue.js项目骨架。在 `/frontend/` 目录下，使用 Vue CLI 创建标准项目。完整的 `/frontend/` 目录结构，包含 `src/`, `public/` 等。
 - 集成Vue Router。配置 `/frontend/src/router/index.js`。路由配置文件，预设推荐、路径规划等路由。
 - 集成Leaflet地图库。在 `/frontend/src/components/map/` 创建基础地图组件。`BaseMap.vue` (一个初始化并显示地图的基础组件)。
@@ -64,5 +66,6 @@
 - **`/docs` 目录** 下包含完整的功能清单、API文档和数据库设计。
 - **`/cpp_core` 目录** 下的代码可以通过 `cmake` 和 `make` 成功编译。
 - **`/backend` 目录** 拥有一个结构清晰的Flask应用包。
+
 
 
