@@ -1,0 +1,21 @@
+{
+	"name": "personalized-tourism-frontend",
+	"version": "0.1.0",
+	"private": true,
+	"scripts": {
+		"serve": "vue-cli-service serve",
+		"build": "vue-cli-service build",
+		"lint": "echo 'No linter configured'"
+	},
+	"dependencies": {
+		"bootstrap": "^5.3.3",
+		"leaflet": "^1.9.4",
+		"vue": "^3.4.0",
+		"vue-router": "^4.3.0",
+		"@popperjs/core": "^2.11.8"
+	},
+	"devDependencies": {
+		"@vue/cli-service": "^5.0.8",
+		"@vue/compiler-sfc": "^3.4.0"
+	}
+}
