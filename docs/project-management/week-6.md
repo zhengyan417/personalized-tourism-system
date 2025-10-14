@@ -11,7 +11,7 @@
 ## 完成任务后，自行用删除线，如~~任务二~~
 
 ### 甘和君
-- 开发前端agent。正式发布在初发平台上。
+- 开发协作，文档agent。正式发布在初发平台上。
 - 完成并且优化项目方案书及对应PPT,准备在下周一课上报告。
 - 确定最终功能清单，创建并编写 `/docs/project-management/functional-spec.md`。包含用户故事、功能点列表。
 - 编写推荐模块API接口文档。创建并编写 `/docs/api/recommendation.md`。推荐系统的完整API接口说明
@@ -19,13 +19,13 @@
 - 制作第六周周报与第七周安排。创建并编写 `/docs/project-management/weekly-plans/week-07.md`。
 
 ### 蔡佩霖
-- 开发后端agent。正式发布在初发平台上。
+- 开发算法agent。正式发布在初发平台上。
 - 设计路径规划模块API接口。创建并编写 `/docs/api/route-planning.md`。路径规划请求、响应参数详解。
 - 实现C++图基础类。创建并实现 `/cpp_core/include/graph/` 下的头文件。`graph.h`, `vertex.h`, `edge.h` (类的声明)。
 - 实现图类基础方法。创建并实现 `/cpp_core/src/graph/` 下的源文件。`graph.cpp`, `vertex.cpp`, `edge.cpp` (类的基础实现，如添加顶点、边)。
 - 创建C++模块构建配置。创建 `/cpp_core/CMakeLists.txt`。确保C++项目能成功编译。
 ### 刘永琰
-- 开发协作agent。正式发布在初发平台上。
+- 开发后端agent。正式发布在初发平台上。
 - 设计数据库ER图。创建并编写 `/docs/database/er_diagram.md`。可描述核心表关系，附示意图或Mermaid代码。
 - 创建MySQL表结构脚本。 创建并编写 `/docs/database/schema.sql`。创建 `users`, `attractions`, `routes`, `diaries` 等核心表的SQL。
 - 编写场所查询API文档。 创建并编写 `/docs/api/place-query.md`。邻近查询、类别过滤等接口说明。
@@ -34,7 +34,7 @@
 
 
 ### 唐士淼
-- 开发文档制作agent。正式发布在初发平台上。
+- 开发前端制作agent。正式发布在初发平台上。
 - 搭建Vue.js项目骨架。在 `/frontend/` 目录下，使用 Vue CLI 创建标准项目。完整的 `/frontend/` 目录结构，包含 `src/`, `public/` 等。
 - 集成Vue Router。配置 `/frontend/src/router/index.js`。路由配置文件，预设推荐、路径规划等路由。
 - 集成Leaflet地图库。在 `/frontend/src/components/map/` 创建基础地图组件。`BaseMap.vue` (一个初始化并显示地图的基础组件)。
@@ -66,6 +66,7 @@
 - **`/docs` 目录** 下包含完整的功能清单、API文档和数据库设计。
 - **`/cpp_core` 目录** 下的代码可以通过 `cmake` 和 `make` 成功编译。
 - **`/backend` 目录** 拥有一个结构清晰的Flask应用包。
+
 
 
 
