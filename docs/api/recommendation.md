@@ -67,25 +67,24 @@ GET /api/recommendations?user_id=123&top_n=10&algorithm=content_based
 #### 📤 响应格式
 
 ```json
-
 {
-  "success": true, 
-  "data": {
-    "recommendations": [
-      {
-        "attraction_id": 1,
-        "name": "故宫博物院",
-        "type": "历史景点",
-        "score": 0.95,
-        "reason": "基于您的历史浏览记录推荐",
-        "image_url": "/images/forbidden-city.jpg",
-        "popularity": 0.8,
-        "rating": 4.7
-      }
-    ],
-    "algorithm_used": "content_based",
-    "processing_time": "0.045s"
-  }
+  "success": true,
+  "data": {
+    "recommendations": [
+      {
+        "attraction_id": 1,
+        "name": "故宫博物院",
+        "type": "历史景点",
+        "score": 0.95,
+        "reason": "基于您的历史浏览记录推荐",
+        "image_url": "/images/forbidden-city.jpg",
+        "popularity": 0.8,
+        "rating": 4.7
+      }
+    ],
+    "algorithm_used": "content_based",
+    "processing_time": "0.045s"
+  }
 }
 
 ```
@@ -124,22 +123,21 @@ GET /api/recommendations/hot?top_n=15&sort_by=rating
 ```json
 
 {
-
-  "success": true,
-  "data": {
-    "recommendations": [
-      {
-        "attraction_id": 2,
-        "name": "颐和园",
-        "type": "自然风光",
-        "popularity": 0.9,
-        "rating": 4.8,
-        "visitor_count": 15000
-      }
-    ],
-    "sort_method": "rating",
-    "total_attractions": 200
-  }
+  "success": true,
+  "data": {
+    "recommendations": [
+      {
+        "attraction_id": 2,
+        "name": "颐和园",
+        "type": "自然风光",
+        "popularity": 0.9,
+        "rating": 4.8,
+        "visitor_count": 15000
+      }
+    ],
+    "sort_method": "rating",
+    "total_attractions": 200
+  }
 }
 
 ```
@@ -178,22 +176,22 @@ GET /api/recommendations/search?query=自然风光&search_type=category&limit=15
 ```json
 
 {
-  "success": true,
-  "data": {
-    "query": "自然风光",
-    "results": [
-      {
-        "attraction_id": 3,
-        "name": "香山公园",
-        "type": "自然风光",
-        "relevance_score": 0.98,
-        "match_field": "category",
-        "highlight": "自然风光"
-      }
-    ],
-    "total_count": 45,
-    "search_time": "0.023s"
-  }
+  "success": true,
+  "data": {
+    "query": "自然风光",
+    "results": [
+      {
+        "attraction_id": 3,
+        "name": "香山公园",
+        "type": "自然风光",
+        "relevance_score": 0.98,
+        "match_field": "category",
+        "highlight": "自然风光"
+      }
+    ],
+    "total_count": 45,
+    "search_time": "0.023s"
+  }
 }
 ```
 
