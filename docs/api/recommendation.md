@@ -153,7 +153,6 @@ GET /api/recommendations/hot?top_n=15&sort_by=rating
 #### 📘 功能描述
 
 基于倒排索引算法，支持对景点名称、类别、关键字的快速搜索，并对搜索结果按相关度排序。
-
   
 
 #### 🧾 请求参数
@@ -217,7 +216,6 @@ GET /api/recommendations/search?query=自然风光&search_type=category&limit=15
 - **倒排索引**：用于关键词搜索，提供快速检索能力  
 
 - **快速选择算法**：用于热门推荐，部分排序优化性能
-
   
 
 ---
