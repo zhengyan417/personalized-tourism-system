@@ -15,8 +15,11 @@
  */
 
 -- ===============================================
--- 一、创建数据库
+-- 一、创建数据库r
 -- ===============================================
+SET FOREIGN_KEY_CHECKS = 0;
+SET NAMES utf8mb4;
+SET NAMES utf8mb4;
 CREATE DATABASE IF NOT EXISTS travel_system CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE travel_system;
 
@@ -114,3 +117,4 @@ VALUES
  *   - 可在 /docs/api/travel-diary.md 定义日记 CRUD 接口；
  *   - 可通过 Flask SQLAlchemy 或 PyMySQL 与该数据库连接。
  */
+SET FOREIGN_KEY_CHECKS = 1;
