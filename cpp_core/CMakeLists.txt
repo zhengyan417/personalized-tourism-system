@@ -12,6 +12,10 @@ add_library(graph STATIC
 )
 target_include_directories(graph PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
+# 第三方依赖（留空即可，未来需要时再启用）
+# find_package(fmt 10 CONFIG REQUIRED)
+# target_link_libraries(graph PUBLIC fmt::fmt)
+
 option(BUILD_GRAPH_TESTS "Build graph tests" ON)
 if (BUILD_GRAPH_TESTS)
     enable_testing()
@@ -21,7 +25,7 @@ if (BUILD_GRAPH_TESTS)
     add_test(NAME test_graph COMMAND test_graph)
 endif()
 
-# 关闭打包配置，避免缺失 graphConfig.cmake.in 报错
+# 打包配置，默认关闭，避免缺失模板文件报错
 option(ENABLE_GRAPH_PACKAGE_CONFIG "Generate CMake package config files" OFF)
 if (ENABLE_GRAPH_PACKAGE_CONFIG)
     include(CMakePackageConfigHelpers)
@@ -35,6 +39,5 @@ if (ENABLE_GRAPH_PACKAGE_CONFIG)
     install(FILES
         ${CMAKE_CURRENT_BINARY_DIR}/graphConfig.cmake
         ${CMAKE_CURRENT_BINARY_DIR}/graphConfigVersion.cmake
-        DESTINATION lib/cmake/graph
-    )
+    DESTINATION lib/cmake/graph)
 endif()

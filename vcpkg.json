@@ -1,0 +1,6 @@
+{
+  "name": "personalized-tourism-system",
+  "version-string": "0.1.0",
+  "description": "Core C++ graph and route planning modules.",
+  "dependencies": []
+}

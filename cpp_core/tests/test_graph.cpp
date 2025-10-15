@@ -24,18 +24,14 @@ int main() {
 
     // Graph 基础测试
     Graph g;
-
-    // add_vertex / has_vertex
     assert(!g.has_vertex(1));
-    assert(g.add_vertex(1) == true);   // 首次添加成功
-    assert(g.add_vertex(1) == false);  // 重复添加失败
+    assert(g.add_vertex(1) == true);
+    assert(g.add_vertex(1) == false);
     assert(g.has_vertex(1));
 
-    // add_edge 会自动补全顶点
     g.add_edge(1, 2, 2.5);
     assert(g.has_vertex(2));
 
-    // 邻接检查
     {
         const auto& nbrs1 = g.neighbors(1);
         assert(nbrs1.size() == 1);
@@ -43,10 +39,9 @@ int main() {
         assert(approx(nbrs1[0].second, 2.5));
 
         const auto& nbrs2 = g.neighbors(2);
-        assert(nbrs2.empty()); // 2 目前没有出边
+        assert(nbrs2.empty());
     }
 
-    // 多条边
     g.add_edge(1, 3, 1.0);
     g.add_edge(3, 4, 4.2);
     assert(g.has_vertex(3) && g.has_vertex(4));
@@ -54,7 +49,6 @@ int main() {
     {
         const auto& nbrs1 = g.neighbors(1);
         assert(nbrs1.size() == 2);
-        // 无序要求，这里校验集合特性
         bool has_2 = false, has_3 = false;
         for (auto& p : nbrs1) {
             if (p.first == 2 && approx(p.second, 2.5)) has_2 = true;

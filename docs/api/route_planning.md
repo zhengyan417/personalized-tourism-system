@@ -9,6 +9,11 @@
 - 仅使用 C++17 标准库类型
 - 可选依赖 `graph` 模块作为底层拓扑
 
+依赖概述
+- 构建工具：CMake >= 3.16
+- 编译器：MSVC 2022 / MinGW-w64 / Clang / GCC（支持 C++17）
+- 运行时：无额外第三方依赖（默认仅用标准库）
+
 建议的头文件组织：
 - route_planning/types.hpp
 - route_planning/request.hpp
@@ -389,4 +394,4 @@ req.departure_time = std::chrono::system_clock::now();
 ## 版本与兼容性
 
 - 0.1.0: 初版数据模型与接口约定。
-- 后续变更遵循“仅新增字段为主”的向后兼容策略；删除或语义变更将提升主版本号
+- 后续变更遵循“仅新增字段为主”的向后兼容策略；删除或语义变更将提升主版本号。
