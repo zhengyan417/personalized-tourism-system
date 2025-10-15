@@ -1,1 +1,24 @@
 
+{
+	"name": "personalized-tourism-system",
+	"private": true,
+	"version": "0.1.0",
+	"workspaces": [],
+	"scripts": {
+		"frontend:install": "cd frontend && npm install",
+		"frontend:serve": "cd frontend && npm run serve",
+		"frontend:build": "cd frontend && npm run build"
+	},
+	"dependencies": {
+		"bootstrap": "^5.3.3",
+		"leaflet": "^1.9.4",
+		"vue": "^3.4.0",
+		"vue-router": "^4.3.0",
+		"@popperjs/core": "^2.11.8"
+	},
+	"devDependencies": {
+		"@vue/cli-service": "^5.0.8",
+		"@vue/compiler-sfc": "^3.4.0"
+	}
+}
+
