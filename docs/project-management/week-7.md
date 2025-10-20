@@ -85,12 +85,12 @@
 
 1. **分支创建**（周一完成）：
     
-    bash
-    
-    # 从dev分支创建功能分支
+   # 从dev分支创建功能分支
+```bash
     git checkout dev
     git pull origin dev
-    git checkout -b feature/name-week7-task
+    git checkout -b feature/name-week7-task  
+```  
     
 2. **开发与提交**：每日工作后及时提交代码
     
@@ -114,4 +114,5 @@
 
 - **周三**：数据收集完成50%，基础框架搭建完成
     
+
 - **周五**：所有基础功能完成，准备集成测试
