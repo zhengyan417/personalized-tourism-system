@@ -3,8 +3,11 @@
   </template>
 
 <script>
-import { nextTick, onBeforeUnmount } from 'vue'
+import { nextTick, onBeforeUnmount, watch } from 'vue'
 import L from 'leaflet'
+import iconUrl from 'leaflet/dist/images/marker-icon.png'
+import iconRetinaUrl from 'leaflet/dist/images/marker-icon-2x.png'
+import shadowUrl from 'leaflet/dist/images/marker-shadow.png'
 
 export default {
   name: 'BaseMap',
@@ -29,12 +32,23 @@ export default {
       // 全屏模式下距离顶部的偏移（避免遮挡导航）
       type: [Number, String],
       default: 0
+    },
+    markers: {
+      // [{ id, name, latitude, longitude, popup }]
+      type: Array,
+      default: () => []
+    },
+    selectedId: {
+      type: [String, Number, null],
+      default: null
     }
   },
   data() {
     return {
       map: null,
-      _resizeHandler: null
+      _resizeHandler: null,
+      _markerLayer: null,
+      _markerMap: new Map()
     }
   },
   computed: {
@@ -57,6 +71,31 @@ export default {
     // 监听窗口尺寸变化
     this._resizeHandler = () => this.invalidateSizeSafe()
     window.addEventListener('resize', this._resizeHandler)
+
+    // 监听外部变更
+    watch(() => this.center, (val) => {
+      if (this.map && Array.isArray(val) && val.length === 2) {
+        this.map.setView(val, this.map.getZoom())
+      }
+    }, { deep: true })
+
+    watch(() => this.zoom, (z) => {
+      if (this.map && typeof z === 'number') this.map.setZoom(z)
+    })
+
+    watch(() => this.markers, () => {
+      this.renderMarkers()
+    }, { deep: true, immediate: false })
+
+    watch(() => this.selectedId, (id) => {
+      if (!id) return
+      const m = this._markerMap.get(String(id))
+      if (m) {
+        m.openPopup()
+        const latlng = m.getLatLng()
+        this.map && this.map.panTo(latlng)
+      }
+    })
   },
   beforeUnmount() {
     window.removeEventListener('resize', this._resizeHandler)
@@ -67,6 +106,12 @@ export default {
   },
   methods: {
     initMap() {
+      // 修复默认图标路径
+      L.Icon.Default.mergeOptions({
+        iconUrl,
+        iconRetinaUrl,
+        shadowUrl
+      })
       const el = this.$refs.mapContainer
       if (!el) {
         console.error('[BaseMap] 容器未找到')
@@ -86,10 +131,35 @@ export default {
         console.error('[BaseMap] 瓦片加载失败', e)
       })
       layer.addTo(this.map)
+
+      // 初始化标记图层
+      this._markerLayer = L.layerGroup().addTo(this.map)
+      this.renderMarkers()
     },
     invalidateSizeSafe() {
       if (this.map) {
         this.map.invalidateSize()
+      }
+    },
+    renderMarkers() {
+      if (!this.map || !this._markerLayer) return
+      this._markerLayer.clearLayers()
+      this._markerMap.clear()
+      if (!Array.isArray(this.markers)) return
+      const bounds = []
+      this.markers.forEach((mk) => {
+        const { id, name, latitude, longitude, popup } = mk
+        if (typeof latitude !== 'number' || typeof longitude !== 'number') return
+        const marker = L.marker([latitude, longitude])
+        const content = popup || name || String(id || '')
+        if (content) marker.bindPopup(content)
+        marker.on('click', () => this.$emit && this.$emit('marker-click', mk))
+        marker.addTo(this._markerLayer)
+        if (id !== undefined && id !== null) this._markerMap.set(String(id), marker)
+        bounds.push([latitude, longitude])
+      })
+      if (bounds.length > 0 && !this.fullScreen) {
+        try { this.map.fitBounds(bounds, { padding: [24, 24] }) } catch {}
       }
     }
   }
