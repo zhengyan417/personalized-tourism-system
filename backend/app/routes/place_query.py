@@ -1,5 +1,5 @@
 # 文件路径：backend/app/routes/place_query.py
-# 模块功能：景点查询接口（邻近搜索、类别过滤）
+# 模块功能：景点查询接口（按ID、按类别、邻近搜索）
 # 模块负责人：C 同学
 
 from flask import Blueprint, request, jsonify
@@ -9,7 +9,10 @@ import math
 # 创建蓝图对象
 place_bp = Blueprint('place', __name__)
 
-# 计算两点之间的距离（Haversine公式）
+
+# -----------------------------------------
+# 工具函数：Haversine公式计算两点距离（单位：公里）
+# -----------------------------------------
 def haversine(lat1, lon1, lat2, lon2):
     R = 6371  # 地球半径（千米）
     d_lat = math.radians(lat2 - lat1)
@@ -24,8 +27,86 @@ def haversine(lat1, lon1, lat2, lon2):
 
 
 # -----------------------------------------
+# GET /api/places/
+# 查询全部景点，可选按类别或关键字过滤
+# -----------------------------------------
+@place_bp.route('/', methods=['GET'])
+def get_places():
+    """
+    示例请求：
+        GET /api/places/
+        GET /api/places/?category=美食
+        GET /api/places/?keyword=颐和园
+    """
+    try:
+        category = request.args.get('category')
+        keyword = request.args.get('keyword')
+
+        db = get_db()
+        with db.cursor() as cursor:
+            sql = "SELECT * FROM attractions WHERE 1=1"
+            params = []
+
+            if category:
+                sql += " AND category = %s"
+                params.append(category)
+
+            if keyword:
+                sql += " AND name LIKE %s"
+                params.append(f"%{keyword}%")
+
+            cursor.execute(sql, tuple(params))
+            results = cursor.fetchall()
+
+        return jsonify({
+            "status": "success",
+            "count": len(results),
+            "data": results
+        })
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
+
+
+# -----------------------------------------
+# GET /api/places/<int:attraction_id>
+# 按景点ID查询单个景点详情
+# -----------------------------------------
+@place_bp.route('/<int:attraction_id>', methods=['GET'])
+def get_place_by_id(attraction_id):
+    """
+    示例请求：
+        GET /api/places/1
+    """
+    try:
+        db = get_db()
+        with db.cursor() as cursor:
+            sql = "SELECT * FROM attractions WHERE attraction_id = %s"
+            cursor.execute(sql, (attraction_id,))
+            result = cursor.fetchone()
+
+        if result:
+            return jsonify({
+                "status": "success",
+                "data": result
+            })
+        else:
+            return jsonify({
+                "status": "error",
+                "message": f"未找到 ID={attraction_id} 的景点"
+            }), 404
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
+
+
+# -----------------------------------------
 # GET /api/places/nearby
-# 邻近查询 + 类别过滤
+# 邻近查询 + 可选类别过滤
 # -----------------------------------------
 @place_bp.route('/nearby', methods=['GET'])
 def get_nearby_places():
@@ -42,14 +123,13 @@ def get_nearby_places():
         db = get_db()
         with db.cursor() as cursor:
             if category:
-                sql = "SELECT * FROM attractions WHERE category=%s"
+                sql = "SELECT * FROM attractions WHERE category = %s"
                 cursor.execute(sql, (category,))
             else:
                 sql = "SELECT * FROM attractions"
                 cursor.execute(sql)
             results = cursor.fetchall()
 
-        # 根据坐标过滤范围
         nearby = []
         for r in results:
             if r['latitude'] is not None and r['longitude'] is not None:
