@@ -4,6 +4,7 @@
 
 from flask import Blueprint, request, jsonify
 from app.utils.database import get_db
+from app.utils.helpers import deduplicate_records, deduplicate_by_description
 import math
 
 # 创建蓝图对象
@@ -57,6 +58,10 @@ def get_places():
 
             cursor.execute(sql, tuple(params))
             results = cursor.fetchall()
+
+        # 去重：优先按 attraction_id/id；若无则用 name+坐标；最后按描述再去重
+        results = deduplicate_records(results, keys=("attraction_id", "id"))
+        results = deduplicate_by_description(results, description_key="description", ignore_empty=True)
 
         return jsonify({
             "status": "success",
@@ -138,6 +143,9 @@ def get_nearby_places():
                     r['distance_km'] = round(distance, 2)
                     nearby.append(r)
 
+        # 去重后再排序（ID/坐标 -> 描述）
+        nearby = deduplicate_records(nearby, keys=("attraction_id", "id"))
+        nearby = deduplicate_by_description(nearby, description_key="description", ignore_empty=True)
         nearby.sort(key=lambda x: x['distance_km'])
         return jsonify({
             "status": "success",
