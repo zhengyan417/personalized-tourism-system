@@ -31,12 +31,6 @@ function genAttractions(centerLat, centerLon, count = 200) {
 module.exports = {
 	devServer: {
 		setupMiddlewares(middlewares, devServer) {
-			const useMock = process.env.VUE_APP_USE_MOCK === 'true'
-			if (!useMock) {
-				console.log('[devServer] API mock disabled. Forward requests to real backend.')
-				return middlewares
-			}
-
 			const app = devServer.app
 
 			// 类别列表
