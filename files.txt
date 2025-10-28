@@ -1,0 +1,217 @@
+卷 OS 的文件夹 PATH 列表
+卷序列号为 FA2F-F431
+C:.
+|   .gitignore
+|   CmakeLists.txt
+|   files.txt
+|   mysql
+|   package.json
+|   project_structure.txt
+|   README.md
+|   requirements.txt
+|   vcpkg.json
+|   
++---.vscode
+|       c_cpp_properties.json
+|       launch.json
+|       tasks.json
+|       
++---backend
+|   |   app.py
+|   |   config.py
+|   |   README.md
+|   |   requirements.txt
+|   |   test.py
+|   |   
+|   +---app
+|   |   |   __init__.py
+|   |   |   
+|   |   +---core_bridge
+|   |   |   |   compression_bridge.py
+|   |   |   |   graph_bridge.py
+|   |   |   |   __init__.py
+|   |   |   |   
+|   |   |   \---fallback
+|   |   |           graph.py
+|   |   |           huffman.py
+|   |   |           __init__.py
+|   |   |           
+|   |   +---models
+|   |   |   |   attraction.py
+|   |   |   |   diary.py
+|   |   |   |   route.py
+|   |   |   |   user.py
+|   |   |   |   __init__.py
+|   |   |   |   
+|   |   |   \---__pycache__
+|   |   |           __init__.cpython-312.pyc
+|   |   |           
+|   |   +---routes
+|   |   |   |   place_query.py
+|   |   |   |   recommendation.py
+|   |   |   |   route_planning.py
+|   |   |   |   travel_diary.py
+|   |   |   |   __init__.py
+|   |   |   |   
+|   |   |   \---__pycache__
+|   |   |           place_query.cpython-312.pyc
+|   |   |           recommendation.cpython-312.pyc
+|   |   |           route_planning.cpython-312.pyc
+|   |   |           travel_diary.cpython-312.pyc
+|   |   |           __init__.cpython-312.pyc
+|   |   |           
+|   |   +---services
+|   |   |       diary_service.py
+|   |   |       place_service.py
+|   |   |       recommendation_service.py
+|   |   |       route_service.py
+|   |   |       __init__.py
+|   |   |       
+|   |   +---utils
+|   |   |   |   database.py
+|   |   |   |   data_import.py
+|   |   |   |   helpers.py
+|   |   |   |   __init__.py
+|   |   |   |   
+|   |   |   \---__pycache__
+|   |   |           database.cpython-312.pyc
+|   |   |           __init__.cpython-312.pyc
+|   |   |           
+|   |   \---__pycache__
+|   |           __init__.cpython-312.pyc
+|   |           
+|   \---__pycache__
+|           config.cpython-312.pyc
+|           
++---cpp_core
+|   |   CMakeLists.txt
+|   |   README.md
+|   |   setup.py
+|   |   
+|   +---bindings
+|   |       core.cpp
+|   |       
+|   +---include
+|   |   +---algorithms
+|   |   |       dijkstra.h
+|   |   |       huffman_encoding.h
+|   |   |       tsp.h
+|   |   |       
+|   |   +---graph
+|   |   |       edge.h
+|   |   |       graph.h
+|   |   |       vertex.h
+|   |   |       
+|   |   \---units
+|   |           distance.h
+|   |           priority_queue.h
+|   |           
+|   +---src
+|   |   +---algorithms
+|   |   |       dijkstra.cpp
+|   |   |       huffman_encoding.cpp
+|   |   |       tsp.cpp
+|   |   |       
+|   |   +---graph
+|   |   |       edges.cpp
+|   |   |       graph.cpp
+|   |   |       vertex.cpp
+|   |   |       
+|   |   \---units
+|   |           distances.cpp
+|   |           priority_queue.cpp
+|   |           
+|   \---tests
+|           test_dijkstra.cpp
+|           test_graph.cpp
+|           test_tsp.cpp
+|           
++---docs
+|   +---algorithms
+|   |       dijkstra_implementation.md
+|   |       graph_algorithm.md
+|   |       huffman_coding.md
+|   |       
+|   +---api
+|   |       ..HEAD
+|   |       place_query.md
+|   |       recommendation.md
+|   |       route_planning.md
+|   |       travel.md
+|   |       
+|   +---architecture
+|   |       api_design.md
+|   |       deployment.md
+|   |       system_architecture.md
+|   |       
+|   +---database
+|   |       attractions_data.csv
+|   |       er_diagram.md
+|   |       facilities_data.csv
+|   |       sample_data.sql
+|   |       schema.sql
+|   |       
+|   +---guides
+|   |       个性化旅游系统项目Git协作规范手册.docx
+|   |       个性化旅游系统项目计划书.docx
+|   |       
+|   \---project-management
+|           functional-spec.md
+|           README.md
+|           week-6.md
+|           
+\---frontend
+    |   package-lock.json
+    |   package.json
+    |   README.md
+    |   vue.config.js
+    |   
+    +---public
+    |       favicon.ico
+    |       index.html
+    |       
+    \---src
+        |   App.vue
+        |   main.js
+        |   
+        +---api
+        |       diary.js
+        |       index.js
+        |       place.js
+        |       recommendation.js
+        |       route.js
+        |       
+        +---components
+        |   +---diary
+        |   |       Index.vue
+        |   |       
+        |   +---map
+        |   |       BaseMap.vue
+        |   |       
+        |   +---place
+        |   |       Index.vue
+        |   |       
+        |   +---recommendation
+        |   |       Index.vue
+        |   |       
+        |   \---route
+        |           Index.vue
+        |           
+        +---router
+        |       index.js
+        |       
+        +---store
+        |       index.js
+        |       
+        +---utils
+        |       cache.js
+        |       formatters.js
+        |       map.js
+        |       
+        \---views
+                Home.vue
+                PlaceQuery.vue
+                Recommendation.vue
+                RoutePlanning.vue
+                TravelDiary.vue
+                

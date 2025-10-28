@@ -25,3 +25,6 @@ def init_db(app):
 def get_db():
     """获取数据库连接对象"""
     return getattr(g, 'db', None)
+def get_connection():
+    """兼容旧版本函数名，等价于 get_db()"""
+    return get_db()
