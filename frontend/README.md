@@ -12,9 +12,11 @@
 1. 安装依赖
 
 ```pwsh
-cd .\frontend
-npm install
-```
+
+### 测试开关（切换测试/正式后端）
+
+- 在`.env.development`中设置：`VUE_APP_FRONTEND_TEST=true`
+  
 
 2. 启动开发服务器
 
@@ -100,7 +102,7 @@ Props：
 
 - 首页：`src/views/Home.vue`（可切换全屏地图展示）
 - 地点查询：`src/views/PlaceQuery.vue`（列表 + 地图联动、类别/半径筛选）
-- 推荐：`src/views/Recommendation.vue`（待接入后端数据，可先展示热门/个性化列表）
+- 推荐：`src/views/Recommendation.vue`（关键词搜索、偏好设置、虚拟滚动、Top10 高亮、地图标记联动）
 
 ## 常见问题（FAQ）
 
@@ -117,3 +119,5 @@ Props：
 - 2025-10-14 集成 Vue Router、Bootstrap、Leaflet；新增基础地图组件 BaseMap；预设首页/地点查询/推荐/路径规划/旅行日记路由；首页接入地图
 - 2025-10-14 地图瓦片切换为高德源，支持全屏与顶部偏移，导航置顶
 - 2025-10-20 新增 axios 封装与 place/recommendation API；BaseMap 支持 markers/selectedId；完成 PlaceQuery 列表+地图联动
+- 2025-11-02 推荐模块页面：搜索框、偏好面板（算法/排序/TopN/类别）、虚拟滚动卡片列表、Top10 高亮、地图标记联动；Mock 接口补充坐标
+- 2025-11-02 新增“前端测试开关”：支持 TEST/PROD 两套后端切换，优先级 URL 参数 > localStorage > 环境变量；提供 .env.* 示例
