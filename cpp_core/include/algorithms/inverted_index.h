@@ -1,10 +1,3 @@
-/**
- * @file inverted_index.h
- * @brief 倒排索引算法头文件 - 用于关键词搜索推荐
- * @author 甘和君
- * @date 第6周
- */
-
 #pragma once
 
 #include <vector>
@@ -13,6 +6,7 @@
 #include <unordered_set>
 
 namespace recommendation {
+
 
 /**
  * @brief 景点数据结构

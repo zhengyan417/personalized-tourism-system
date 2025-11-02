@@ -1,10 +1,3 @@
-/**
- * @file inverted_index.cpp
- * @brief 倒排索引算法实现 - 用于关键词搜索推荐
- * @author 甘和君
- * @date 第6周
- */
-
 #include "../../include/algorithms/inverted_index.h"
 #include <algorithm>
 #include <sstream>
@@ -96,14 +89,16 @@ std::vector<SearchResult> InvertedIndex::search(
                 double relevance_score = calculateRelevanceScore(posting, query_tokens.size());
                 
                 if (doc_scores.find(posting.doc_id) == doc_scores.end()) {
-                    doc_scores[posting.doc_id] = SearchResult{
-                        posting.doc_id,
-                        getAttractionName(posting.doc_id),
-                        getAttractionType(posting.doc_id),
-                        relevance_score,
-                        posting.field,
-                        generateHighlight(query, posting.doc_id)
-                    };
+                    // 创建 SearchResult 对象并逐个赋值
+                    SearchResult result;
+                    result.attraction_id = posting.doc_id;  // 修改为 attraction_id
+                    result.name = getAttractionName(posting.doc_id);
+                    result.type = getAttractionType(posting.doc_id);
+                    result.relevance_score = relevance_score;
+                    result.match_field = posting.field;      // 修改为 match_field
+                    result.highlight = generateHighlight(query, posting.doc_id);
+                    
+                    doc_scores[posting.doc_id] = result;
                 } else {
                     // 合并相同文档的分数
                     doc_scores[posting.doc_id].relevance_score += relevance_score;
