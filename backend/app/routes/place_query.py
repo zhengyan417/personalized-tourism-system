@@ -60,8 +60,7 @@ def get_places():
             results = cursor.fetchall()
 
         # 去重：优先按 attraction_id/id；若无则用 name+坐标；最后按描述再去重
-        results = deduplicate_records(results, keys=("attraction_id", "id"))
-        results = deduplicate_by_description(results, description_key="description", ignore_empty=True)
+       
 
         return jsonify({
             "status": "success",

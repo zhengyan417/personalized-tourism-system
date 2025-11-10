@@ -22,6 +22,8 @@ def decompress_content(encoded):
     if not encoded:
         return ""
     try:
+
+        
         compressed = base64.b64decode(encoded.encode('utf-8'))
         return zlib.decompress(compressed).decode('utf-8')
     except Exception:
