@@ -34,7 +34,16 @@
 
   
 
-## 三、接口定义
+## 三、字段说明
+
+- 字段命名对齐：
+  - `type` 为接口返回字段，值来源于数据库列 `category`（别名）。
+  - `rating` 为接口返回字段，值来源于数据库列 `avg_rating`（平均评分）。
+  - `visitor_count` 为一段时间内的访客数（用于热门推荐排序），数据库同名列 `visitor_count`。
+
+> 数据库 attractions/facilities 已包含：`popularity`、`avg_rating`、`rating_count`、`image_url`、`visitor_count`。
+
+## 四、接口定义
 
   
 
@@ -106,7 +115,7 @@ GET /api/recommendations?user_id=123&top_n=10&algorithm=content_based
 |    参数名    | 类型     | 是否必填 | 默认值          | 说明                                   |
 | :-------: | ------ | ---- | ------------ | ------------------------------------ |
 |  `top_n`  | int    | ❌    | 10           | 返回推荐数量（使用快速选择算法优化）                   |
-| `sort_by` | string | ❌    | "popularity" | 排序依据：`popularity`(热度) / `rating`(评分) |
+| `sort_by` | string | ❌    | "popularity" | 排序依据：`popularity`(热度) / `rating`(评分) / `visitor_count`(访客数) |
 
 #### 📥 请求示例
 
@@ -197,7 +206,7 @@ GET /api/recommendations/search?query=自然风光&search_type=category&limit=15
 
   
 
-## 四、错误码说明
+## 五、错误码说明
 
   
 | 错误码 | 说明       | 解决方案          |
@@ -206,7 +215,7 @@ GET /api/recommendations/search?query=自然风光&search_type=category&limit=15
 | 404 | 用户不存在    | 检查user_id是否正确 |
 | 500 | 推荐算法内部错误 | 服务器端算法执行异常    |
 
-## 五、算法说明
+## 六、算法说明
   
 
 - **堆排序算法**：用于Top-N推荐，时间复杂度O(N log K)，避免完全排序

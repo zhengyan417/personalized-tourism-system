@@ -45,12 +45,23 @@ CREATE TABLE attractions (
     category VARCHAR(50) COMMENT '景点类别',
     latitude DOUBLE COMMENT '纬度',
     longitude DOUBLE COMMENT '经度',
-    description TEXT COMMENT '景点描述'
+    description TEXT COMMENT '景点描述',
+    -- 扩展字段（第7周/第8周需求）：热度与评分
+    popularity INT NOT NULL DEFAULT 0 COMMENT '热度（访问/权重）',
+    avg_rating DECIMAL(3,2) DEFAULT NULL COMMENT '平均评分（0.00-5.00）',
+    rating_count INT NOT NULL DEFAULT 0 COMMENT '评分人数',
+    image_url VARCHAR(255) DEFAULT NULL COMMENT '图片地址（可选）',
+    visitor_count INT NOT NULL DEFAULT 0 COMMENT '近一段时间访客数（热门推荐使用）'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='景点信息表';
 
 -- 添加联合索引以加速范围查询
 CREATE INDEX idx_lat_lon ON attractions(latitude, longitude);
 CREATE INDEX idx_category ON attractions(category);
+CREATE INDEX idx_popularity ON attractions(popularity);
+CREATE INDEX idx_rating ON attractions(avg_rating);
+-- 避免重复数据：名称+坐标唯一
+CREATE UNIQUE INDEX ux_attractions_name_lat_lon ON attractions(name, latitude, longitude);
+CREATE INDEX idx_visitor_count ON attractions(visitor_count);
 
 -- ===============================================
 -- 四、路线表：routes
@@ -67,6 +78,32 @@ CREATE TABLE routes (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户路线表';
 
 CREATE INDEX idx_user_route ON routes(user_id);
+
+-- ===============================================
+-- 四点五、设施表：facilities（第7周目标）
+-- ===============================================
+DROP TABLE IF EXISTS facilities;
+CREATE TABLE facilities (
+    facility_id INT AUTO_INCREMENT PRIMARY KEY COMMENT '设施唯一标识',
+    name VARCHAR(100) NOT NULL COMMENT '设施名称',
+    category VARCHAR(50) COMMENT '设施类别',
+    latitude DOUBLE COMMENT '纬度',
+    longitude DOUBLE COMMENT '经度',
+    description TEXT COMMENT '设施描述',
+    popularity INT NOT NULL DEFAULT 0 COMMENT '热度（访问/权重）',
+    avg_rating DECIMAL(3,2) DEFAULT NULL COMMENT '平均评分（0.00-5.00）',
+    rating_count INT NOT NULL DEFAULT 0 COMMENT '评分人数',
+    image_url VARCHAR(255) DEFAULT NULL COMMENT '图片地址（可选）',
+    visitor_count INT NOT NULL DEFAULT 0 COMMENT '近一段时间访客数（热门推荐使用）'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='设施信息表';
+
+CREATE INDEX idx_fac_lat_lon ON facilities(latitude, longitude);
+CREATE INDEX idx_fac_category ON facilities(category);
+CREATE INDEX idx_fac_popularity ON facilities(popularity);
+CREATE INDEX idx_fac_rating ON facilities(avg_rating);
+-- 避免重复数据：名称+坐标唯一
+CREATE UNIQUE INDEX ux_facilities_name_lat_lon ON facilities(name, latitude, longitude);
+CREATE INDEX idx_fac_visitor_count ON facilities(visitor_count);
 
 -- ===============================================
 -- 五、旅游日记表：diaries
@@ -96,10 +133,10 @@ CREATE INDEX idx_attraction_diary ON diaries(attraction_id);
 INSERT INTO users (username, email, password)
 VALUES ('admin', 'admin@example.com', '123456');
 
-INSERT INTO attractions (name, category, latitude, longitude, description)
+INSERT INTO attractions (name, category, latitude, longitude, description, popularity, avg_rating, rating_count, image_url, visitor_count)
 VALUES 
-('颐和园', '景点', 39.999, 116.273, '北京著名皇家园林'),
-('王府井', '美食', 39.916, 116.417, '北京热门商业街');
+('颐和园', '景点', 39.999, 116.273, '北京著名皇家园林', 1200, 4.70, 356, NULL, 15000),
+('王府井', '美食', 39.916, 116.417, '北京热门商业街', 980, 4.30, 221, NULL, 12000);
 
 -- ===============================================
 -- 七、完成提示
