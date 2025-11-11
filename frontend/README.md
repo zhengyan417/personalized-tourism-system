@@ -121,3 +121,13 @@ Props：
 - 2025-10-20 新增 axios 封装与 place/recommendation API；BaseMap 支持 markers/selectedId；完成 PlaceQuery 列表+地图联动
 - 2025-11-02 推荐模块页面：搜索框、偏好面板（算法/排序/TopN/类别）、虚拟滚动卡片列表、Top10 高亮、地图标记联动；Mock 接口补充坐标
 - 2025-11-02 新增“前端测试开关”：支持 TEST/PROD 两套后端切换，优先级 URL 参数 > localStorage > 环境变量；提供 .env.* 示例
+- 2025-11-11 地图与首页整合升级：
+	- 修复 Leaflet 缩放时“Cannot read properties of null (_latLngToNewLayerPoint)”报错：在缩放动画期间延迟重绘路径图层；增加 whenReady/canAnimate 守卫，并在卸载时彻底移除事件监听，保留平滑缩放体验。
+	- BaseMap 新增：定位控件（locateUser）、位置精度圈、location-update 事件；路径规划能力（props: routeMode/routeMarkers；事件: route-point-add），起终点/中间点样式、序号标注与分段距离标签。
+	- 前端内置 Mock 扩展：/api/places/*、/api/recommendations/*、/api/diaries（GET/POST/详情）、/api/route/plan，种子数据稳定可重复；通过 VUE_APP_USE_MOCK 控制开关。
+	- 首页一体化：在 Home 集成“附近 / 推荐 / 路径 / 日记”四个功能 Tab，地图全屏展示 + 左侧面板操作即可完成全部功能。
+	- 面板交互：左侧功能面板支持拖动；右上角提供定位快捷按钮。
+	- 附近：新增经纬度输入与“取地图中心”，可直接输入/定位作为查询点；类别/半径筛选保留。
+	- 推荐：将偏好设置压缩为紧凑行（算法/排序/TopN），类别筛选置于“更多”折叠；与地图联动。
+	- 日记：新增 TravelDiary 页面与 API（src/api/diary.js）；在首页可直接新建/浏览日记并在地图上查看位置。
+	- 主题：加入深浅色主题切换组件（ThemeToggle），地图样式适配暗色模式。

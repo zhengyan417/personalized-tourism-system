@@ -52,7 +52,7 @@
 					:zoom="11"
 					:height="600"
 					:markers="markers"
-					:selectedId="selectedId"
+					:selected-id="selectedId"
 					@marker-click="onMarkerClick"
 				/>
 			</div>
