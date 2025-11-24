@@ -51,6 +51,11 @@ export default {
     routeMarkers: {
       type: Array,
       default: () => []
+    },
+    // 规划完成后的路径坐标数组 [[lat,lng],...]
+    plannedPath: {
+      type: Array,
+      default: () => []
     }
   },
   data() {
@@ -139,6 +144,19 @@ export default {
       },
       { deep: true, immediate: true }
     )
+
+    // 监听规划路线
+    this.$watch(
+      () => this.plannedPath,
+      () => {
+        if (this._zooming) {
+          this._pendingPlannedRender = true
+        } else {
+          this.renderPlannedRoute && this.renderPlannedRoute()
+        }
+      },
+      { deep: true, immediate: true }
+    )
   },
   beforeUnmount() {
     window.removeEventListener('resize', this._resizeHandler)
@@ -186,6 +204,7 @@ export default {
   this._markerLayer = L.layerGroup().addTo(this.map)
   // 路径图层（路径点与折线）
   this._routeLayer = L.layerGroup().addTo(this.map)
+  this._plannedLayer = L.layerGroup().addTo(this.map)
   this.renderMarkers()
   this.renderRoute && this.renderRoute()
       // 标记地图已就绪（用于判断是否可安全执行动画）
@@ -195,10 +214,12 @@ export default {
             this._mapReady = true
             // 地图真正 ready 后再次强制渲染路径，避免初始化阶段 _routeLayer 为空导致未绘制
             try { this.renderRoute && this.renderRoute() } catch {}
+            try { this.renderPlannedRoute && this.renderPlannedRoute() } catch {}
           })
         } else {
           this._mapReady = true
           try { this.renderRoute && this.renderRoute() } catch {}
+          try { this.renderPlannedRoute && this.renderPlannedRoute() } catch {}
         }
       } catch (e) { this._mapReady = true }
       // 添加定位控件与用户定位图层
@@ -241,7 +262,18 @@ export default {
       this.markers.forEach((mk) => {
         const { id, name, latitude, longitude, popup } = mk
         if (typeof latitude !== 'number' || typeof longitude !== 'number') return
-        const marker = L.marker([latitude, longitude])
+        let marker
+        if (mk.color) {
+          marker = L.circleMarker([latitude, longitude], {
+            radius: 8,
+            color: mk.color,
+            weight: 2,
+            fillColor: mk.color,
+            fillOpacity: 0.85
+          })
+        } else {
+          marker = L.marker([latitude, longitude])
+        }
         const content = popup || name || String(id || '')
         if (content) marker.bindPopup(content)
         marker.on('click', () => this.$emit && this.$emit('marker-click', mk))
@@ -322,6 +354,35 @@ export default {
             interactive: false
           }).addTo(this._routeLayer)
         }
+      }
+    },
+    // 绘制规划完成的最终路线（蓝色），支持悬停高亮与方向箭头（简易）
+    renderPlannedRoute() {
+      if (!this.map || !this._plannedLayer) return
+      if (this._zooming) { this._pendingPlannedRender = true; return }
+      this._plannedLayer.clearLayers()
+      if (!Array.isArray(this.plannedPath) || this.plannedPath.length < 2) return
+      const latlngs = this.plannedPath.filter(p => Array.isArray(p) && p.length === 2)
+      if (latlngs.length < 2) return
+      const poly = L.polyline(latlngs, { color: '#1e6bd6', weight: 5, opacity: 0.9, smoothFactor: 1.2 })
+      poly.on('mouseover', () => poly.setStyle({ color: '#ff9800', weight: 8 }))
+      poly.on('mouseout', () => poly.setStyle({ color: '#1e6bd6', weight: 5 }))
+      poly.addTo(this._plannedLayer)
+      // 简易方向箭头：在每段中点放置一个箭头图标（指向下一点）
+      for (let i = 0; i < latlngs.length - 1; i++) {
+        const [lat1, lon1] = latlngs[i]
+        const [lat2, lon2] = latlngs[i + 1]
+        const mid = [ (lat1 + lat2) / 2, (lon1 + lon2) / 2 ]
+        const angle = Math.atan2(lat2 - lat1, lon2 - lon1) * 180 / Math.PI
+        L.marker(mid, {
+          icon: L.divIcon({
+            className: 'planned-arrow',
+            html: `<div style="transform: rotate(${angle}deg)">➤</div>`,
+            iconSize: [20,20],
+            iconAnchor: [10,10]
+          }),
+          interactive: false
+        }).addTo(this._plannedLayer)
       }
     },
     // ------- 定位相关 -------
@@ -463,5 +524,10 @@ export default {
   border: 1px solid #ddd;
   box-shadow: 0 1px 2px rgba(0,0,0,0.2);
   white-space: nowrap;
+}
+.planned-arrow div {
+  color: #1e6bd6;
+  font-size: 16px;
+  text-shadow: 0 0 2px rgba(0,0,0,0.4);
 }
 </style>
