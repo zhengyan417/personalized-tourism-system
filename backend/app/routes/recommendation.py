@@ -47,6 +47,8 @@ def personalized():
     user_id = request.args.get("user_id", type=int)
     top_n = request.args.get("top_n", default=10, type=int)
     algorithm = request.args.get("algorithm", default="content_based", type=str)
+    excluded_category = "交通"
+    candidate_limit = max(top_n * 20, 200)
 
     if not user_id:
         return jsonify({"success": False, "message": "user_id is required"}), 400
@@ -63,9 +65,10 @@ def personalized():
                       attraction_id, name, category, latitude, longitude, description,
                       popularity, avg_rating, rating_count, image_url, visitor_count
                     FROM attractions
+                    WHERE category IS NULL OR category <> %s
                     ORDER BY RAND() LIMIT %s
                     """,
-                    (max(top_n * 20, 200),)
+                    (excluded_category, candidate_limit)
                 )
             except Exception as _:
                 # 兼容旧表结构（主键列名为 id）
@@ -75,11 +78,16 @@ def personalized():
                       id AS attraction_id, name, category, latitude, longitude, description,
                       popularity, avg_rating, rating_count, image_url, visitor_count
                     FROM attractions
+                    WHERE category IS NULL OR category <> %s
                     ORDER BY RAND() LIMIT %s
                     """,
-                    (max(top_n * 20, 200),)
+                    (excluded_category, candidate_limit)
                 )
             rows = cursor.fetchall()
+            rows = [
+                row for row in rows
+                if (row.get("category") or "").strip() != excluded_category
+            ]
 
         # 选择排序器：heap 或 quick（默认 heap）
         algo = "quick" if "quick" in (algorithm or "").lower() else "heap"
@@ -162,6 +170,7 @@ def hot_list():
         """
         top_n = request.args.get("top_n", default=10, type=int)
         sort_by = request.args.get("sort_by", default="popularity", type=str)
+        excluded_category = "交通"
 
         conn = None
         try:
@@ -174,16 +183,26 @@ def hot_list():
                             """
                             SELECT attraction_id, name, category, popularity, avg_rating, rating_count, image_url, visitor_count
                             FROM attractions
+                            WHERE category IS NULL OR category <> %s
                             """
+                            ,
+                            (excluded_category,)
                         )
                     except Exception as _:
                         cursor.execute(
                             """
                             SELECT id AS attraction_id, name, category, popularity, avg_rating, rating_count, image_url, visitor_count
                             FROM attractions
+                            WHERE category IS NULL OR category <> %s
                             """
+                            ,
+                            (excluded_category,)
                         )
                     rows = cursor.fetchall()
+                    rows = [
+                        row for row in rows
+                        if (row.get("category") or "").strip() != excluded_category
+                    ]
                     algo = "heap"
                     ranked = rbridge.rank_hot(rows, top_n=top_n, sort_by=sort_by, algorithm=algo)
                 else:
@@ -199,20 +218,22 @@ def hot_list():
                             f"""
                             SELECT attraction_id, name, category, popularity, avg_rating, rating_count, image_url, visitor_count
                             FROM attractions
+                            WHERE category IS NULL OR category <> %s
                             ORDER BY {order_col} DESC, attraction_id ASC
                             LIMIT %s
                             """,
-                            (top_n,)
+                            (excluded_category, top_n)
                         )
                     except Exception as _:
                         cursor.execute(
                             f"""
                             SELECT id AS attraction_id, name, category, popularity, avg_rating, rating_count, image_url, visitor_count
                             FROM attractions
+                            WHERE category IS NULL OR category <> %s
                             ORDER BY {order_col} DESC, id ASC
                             LIMIT %s
                             """,
-                            (top_n,)
+                            (excluded_category, top_n)
                         )
                     ranked = cursor.fetchall()
 

@@ -43,14 +43,21 @@ export default {
       default: null
     },
     // 路径规划模式：开启后点击地图会触发 route-point-add 事件
-    routeMode: {
-      type: Boolean,
-      default: false
-    },
-    // 路径点数组：[{ latitude, longitude }]
-    routeMarkers: {
+    // 已移除自由路径点功能（routeMode/routeMarkers）
+    // 道路折线：真实导航路径 [[lat, lon], ...]
+    roadPath: {
       type: Array,
       default: () => []
+    }
+    ,
+    // 选定起终点高亮（景点ID）
+    startAttractionId: {
+      type: [Number, String, null],
+      default: null
+    },
+    endAttractionId: {
+      type: [Number, String, null],
+      default: null
     }
   },
   data() {
@@ -62,8 +69,12 @@ export default {
       _initTimer: null,
       _mapReady: false,
       _routeLayer: null,
+      _roadPolyline: null,
       _zooming: false,
-      _pendingRouteRender: false
+      _pendingRoadRender: false,
+      _pendingRoadLatLngs: null,
+      _pendingRoadClear: false,
+      _fallbackAdded: false
     }
   },
   computed: {
@@ -127,15 +138,11 @@ export default {
     )
 
     // 监听路径点变化，重绘路径（独立 watcher）
+    // 监听道路导航路径变化
     this.$watch(
-      () => this.routeMarkers,
+      () => this.roadPath,
       () => {
-        // 如果正在缩放，先标记，等动画结束再重绘
-        if (this._zooming) {
-          this._pendingRouteRender = true
-        } else {
-          this.renderRoute && this.renderRoute()
-        }
+        this.renderRoadPath && this.renderRoadPath()
       },
       { deep: true, immediate: true }
     )
@@ -172,13 +179,26 @@ export default {
       }
   // 启用动画（平滑体验），但后续方法会根据 canAnimate 动态决定是否播放动画
   this.map = L.map(el, { zoomAnimation: true, zoomAnimationThreshold: 4, fadeAnimation: true, preferCanvas: true }).setView(this.center, this.zoom)
-      const layer = L.tileLayer('http://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=7&x={x}&y={y}&z={z}', {
+      // 使用 https 避免在 https 站点下出现 Mixed Content 报错；添加 fallback 逻辑
+      const layer = L.tileLayer('https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=7&x={x}&y={y}&z={z}', {
         maxZoom: 19,
         subdomains: ['1','2','3','4'],
         attribution: '© 高德地图'
       })
       layer.on('tileerror', (e) => {
-        console.error('[BaseMap] 瓦片加载失败', e)
+        // 仅首次报错后尝试添加 OSM 兜底图层，避免每次缩放输出错误
+        if (!this._fallbackAdded) {
+          this._fallbackAdded = true
+          console.warn('[BaseMap] 高德瓦片加载失败，切换到 OpenStreetMap 备用图源')
+          try {
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+              maxZoom: 19,
+              attribution: '© OpenStreetMap'
+            }).addTo(this.map)
+          } catch (err) {
+            console.error('[BaseMap] 添加备用图层失败', err)
+          }
+        }
       })
       layer.addTo(this.map)
 
@@ -187,18 +207,18 @@ export default {
   // 路径图层（路径点与折线）
   this._routeLayer = L.layerGroup().addTo(this.map)
   this.renderMarkers()
-  this.renderRoute && this.renderRoute()
+  this.renderRoadPath && this.renderRoadPath()
       // 标记地图已就绪（用于判断是否可安全执行动画）
       try {
         if (this.map && typeof this.map.whenReady === 'function') {
           this.map.whenReady(() => {
             this._mapReady = true
             // 地图真正 ready 后再次强制渲染路径，避免初始化阶段 _routeLayer 为空导致未绘制
-            try { this.renderRoute && this.renderRoute() } catch {}
+            try { this.renderRoadPath && this.renderRoadPath() } catch {}
           })
         } else {
           this._mapReady = true
-          try { this.renderRoute && this.renderRoute() } catch {}
+          try { this.renderRoadPath && this.renderRoadPath() } catch {}
         }
       } catch (e) { this._mapReady = true }
       // 添加定位控件与用户定位图层
@@ -206,23 +226,23 @@ export default {
       this._locateControl = this._createLocateControl()
       this._locateControl.addTo(this.map)
       // 点击地图以添加路径点（仅在 routeMode 开启时）
-      this.map.on('click', (e) => {
-        if (!this.routeMode) return
-        const { lat, lng } = e.latlng || {}
-        if (typeof lat === 'number' && typeof lng === 'number') {
-          const point = { latitude: +lat.toFixed(6), longitude: +lng.toFixed(6) }
-          this.$emit && this.$emit('route-point-add', point)
-        }
-      })
+      // 已移除自由绘制路径点点击逻辑
       // 缩放动画期间避免立即重绘路径（清空图层会触发 _animateZoom 访问已移除对象导致报错）
       this.map.on('zoomstart', () => {
         this._zooming = true
       })
       this.map.on('zoomend', () => {
         this._zooming = false
-        if (this._pendingRouteRender) {
-          this._pendingRouteRender = false
-          try { this.renderRoute && this.renderRoute() } catch {}
+        this._flushPendingRoadPath && this._flushPendingRoadPath()
+      })
+      // 通用地图点击事件：向父组件发送点击位置（经纬度）
+      this.map.on('click', (e) => {
+        try {
+          const lat = e.latlng.lat
+          const lon = e.latlng.lng
+          this.$emit && this.$emit('map-click', { latitude: lat, longitude: lon })
+        } catch (err) {
+          console.warn('[BaseMap] 处理地图点击失败', err)
         }
       })
     },
@@ -241,11 +261,35 @@ export default {
       this.markers.forEach((mk) => {
         const { id, name, latitude, longitude, popup } = mk
         if (typeof latitude !== 'number' || typeof longitude !== 'number') return
-        const marker = L.marker([latitude, longitude])
-        const content = popup || name || String(id || '')
-        if (content) marker.bindPopup(content)
+        let marker
+        const isStart = this.startAttractionId != null && String(id) === String(this.startAttractionId)
+        const isEnd = this.endAttractionId != null && String(id) === String(this.endAttractionId)
+        if (isStart || isEnd) {
+          const color = isStart ? '#27ae60' : '#c0392b'
+          marker = L.circleMarker([latitude, longitude], {
+            radius: 10,
+            color,
+            weight: 3,
+            fillColor: color,
+            fillOpacity: 0.85
+          })
+          marker.addTo(this._markerLayer)
+          L.marker([latitude, longitude], {
+            icon: L.divIcon({
+              className: 'attraction-label',
+              html: `<div>${id}</div>`,
+              iconSize: [24,24],
+              iconAnchor: [12,30]
+            }),
+            interactive: false
+          }).addTo(this._markerLayer)
+        } else {
+          marker = L.marker([latitude, longitude])
+          marker.addTo(this._markerLayer)
+        }
+        const content = popup || name || `#${id}`
+        if (content && marker && marker.bindPopup) marker.bindPopup(content)
         marker.on('click', () => this.$emit && this.$emit('marker-click', mk))
-        marker.addTo(this._markerLayer)
         if (id !== undefined && id !== null) this._markerMap.set(String(id), marker)
         bounds.push([latitude, longitude])
       })
@@ -264,64 +308,70 @@ export default {
       return R * c
     },
     // 绘制路径点与折线（带序号与分段距离）
-    renderRoute() {
+    // 绘制真实道路导航路径
+    renderRoadPath() {
       if (!this.map || !this._routeLayer) return
-      // 若处于缩放动画中，延后重绘以避免 Leaflet 对已移除图层执行 _animateZoom 报错
       if (this._zooming) {
-        this._pendingRouteRender = true
+        const latlngs = Array.isArray(this.roadPath)
+          ? this.roadPath.filter(p => Array.isArray(p) && p.length === 2)
+          : null
+        const valid = latlngs && latlngs.length >= 2
+        this._pendingRoadRender = true
+        this._pendingRoadLatLngs = valid ? latlngs : null
+        this._pendingRoadClear = !valid
         return
       }
-      this._routeLayer.clearLayers()
-      if (!Array.isArray(this.routeMarkers) || this.routeMarkers.length === 0) return
-      const latlngs = []
-      const n = this.routeMarkers.length
-      this.routeMarkers.forEach((p, idx) => {
-        const { latitude, longitude } = p || {}
-        if (typeof latitude !== 'number' || typeof longitude !== 'number') return
-        latlngs.push([latitude, longitude])
-        // 起终点/中间点不同样式
-        const isStart = idx === 0
-        const isEnd = idx === n - 1
-        const color = isStart ? '#2ecc71' : (isEnd ? '#e74c3c' : '#f39c12')
-        const cm = L.circleMarker([latitude, longitude], {
-          radius: 8,
-          color,
-          weight: 3,
-          fillColor: color,
-          fillOpacity: 0.95
-        }).addTo(this._routeLayer)
-        // 悬停高亮
-        cm.on('mouseover', () => cm.setStyle({ radius: 10 }))
-        cm.on('mouseout', () => cm.setStyle({ radius: 8 }))
-        // 序号标签（divIcon）
-        L.marker([latitude, longitude], {
-          icon: L.divIcon({
-            className: `route-pt-label${isStart ? ' route-pt-start' : (isEnd ? ' route-pt-end' : '')}`,
-            html: `<div>${idx + 1}</div>`,
-            iconSize: [24, 24],
-            iconAnchor: [12, 12]
-          }),
-          interactive: false
-        }).addTo(this._routeLayer)
-      })
-      if (latlngs.length >= 2) {
-  L.polyline(latlngs, { color: '#e74c3c', weight: 4, opacity: 0.9 }).addTo(this._routeLayer)
-        // 分段距离标签
-        for (let i = 0; i < latlngs.length - 1; i++) {
-          const [lat1, lon1] = latlngs[i]
-          const [lat2, lon2] = latlngs[i + 1]
-          const mid = [ (lat1 + lat2) / 2, (lon1 + lon2) / 2 ]
-          const d = this._haversineKm(lat1, lon1, lat2, lon2)
-          L.marker(mid, {
-            icon: L.divIcon({
-              className: 'route-seg-label',
-              html: `<span>${d.toFixed(2)} km</span>`,
-              iconSize: [0, 0],
-              iconAnchor: [0, 0]
-            }),
-            interactive: false
-          }).addTo(this._routeLayer)
+      this._pendingRoadRender = false
+      this._pendingRoadLatLngs = null
+      this._pendingRoadClear = false
+      if (!Array.isArray(this.roadPath)) {
+        this._clearRoadPolyline()
+        return
+      }
+      const latlngs = this.roadPath.filter(p => Array.isArray(p) && p.length === 2)
+      if (latlngs.length < 2) {
+        this._clearRoadPolyline()
+        return
+      }
+      this._updateRoadPolyline(latlngs)
+    },
+    _flushPendingRoadPath() {
+      if (!this._pendingRoadRender) return
+      this._pendingRoadRender = false
+      if (this._pendingRoadClear) {
+        this._pendingRoadClear = false
+        this._pendingRoadLatLngs = null
+        this._clearRoadPolyline()
+        return
+      }
+      const latlngs = this._pendingRoadLatLngs
+      this._pendingRoadLatLngs = null
+      if (Array.isArray(latlngs) && latlngs.length >= 2) {
+        this._updateRoadPolyline(latlngs)
+      }
+    },
+    _updateRoadPolyline(latlngs) {
+      if (!Array.isArray(latlngs) || latlngs.length < 2) {
+        this._clearRoadPolyline()
+        return
+      }
+      if (!this._roadPolyline) {
+        this._roadPolyline = L.polyline(latlngs, { color: '#2980b9', weight: 5, opacity: 0.85, dashArray: '8 6', className: 'road-polyline' })
+        this._roadPolyline.addTo(this._routeLayer)
+      } else {
+        try {
+          this._roadPolyline.setLatLngs(latlngs)
+        } catch (e) {
+          try { this._routeLayer.removeLayer(this._roadPolyline) } catch (err) {}
+          this._roadPolyline = L.polyline(latlngs, { color: '#2980b9', weight: 5, opacity: 0.85, dashArray: '8 6', className: 'road-polyline' })
+          this._roadPolyline.addTo(this._routeLayer)
         }
+      }
+    },
+    _clearRoadPolyline() {
+      if (this._roadPolyline) {
+        try { this._routeLayer.removeLayer(this._roadPolyline) } catch (e) {}
+        this._roadPolyline = null
       }
     },
     // ------- 定位相关 -------
