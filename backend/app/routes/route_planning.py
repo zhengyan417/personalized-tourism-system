@@ -107,7 +107,8 @@ def navigate_route():
     end_lat = request.args.get("end_lat", type=float)
     end_lon = request.args.get("end_lon", type=float)
     profile = request.args.get("profile", default="driving", type=str)
-    provider = request.args.get("provider", default="auto", type=str)
+    # 统一使用 OSRM 作为导航提供商；前端传入的 provider 将被忽略（保持向后兼容字段）。
+    provider = request.args.get("provider", default="osrm", type=str)
 
     raw_wp_list = request.args.getlist("waypoints")
     waypoints = []
@@ -127,45 +128,27 @@ def navigate_route():
     provider = (provider or "auto").lower()
     errors = {}
     data = None
-    selected_provider = provider
+    selected_provider = "osrm"
 
-    if provider in ("auto", "amap"):
-        try:
-            data = navigate_service.fetch_amap_route(
-                start=(start_lat, start_lon),
-                end=(end_lat, end_lon),
-                waypoints=waypoints,
-                profile=profile,
-            )
-            selected_provider = "amap"
-        except Exception as amap_err:
-            errors['amap'] = str(amap_err)
-            if provider == "amap":
-                return jsonify({
-                    "status": "error",
-                    "message": f"AMap 导航失败: {amap_err}"
-                }), 502
-
-    if data is None:
-        try:
-            data = navigate_service.fetch_osrm_route(
-                start=(start_lat, start_lon),
-                end=(end_lat, end_lon),
-                waypoints=waypoints,
-                profile=profile,
-            )
-            selected_provider = "osrm"
-        except Exception as osrm_err:
-            errors['osrm'] = str(osrm_err)
-            return jsonify({
-                "status": "error",
-                "message": f"导航服务不可用: {osrm_err}",
-                "errors": errors
-            }), 502
+    # 统一 OSRM：直接调用 OSRM，忽略 AMap 分支与自动降级逻辑。
+    try:
+        data = navigate_service.fetch_osrm_route(
+            start=(start_lat, start_lon),
+            end=(end_lat, end_lon),
+            waypoints=waypoints,
+            profile=profile,
+        )
+    except Exception as osrm_err:
+        errors['osrm'] = str(osrm_err)
+        return jsonify({
+            "status": "error",
+            "message": f"导航服务不可用: {osrm_err}",
+            "errors": errors
+        }), 502
 
     if errors:
         data.setdefault('fallback', errors)
-    data['provider'] = selected_provider or data.get('provider')
+    data['provider'] = selected_provider
 
     code = 200 if data.get('road_path') else 502
     resp = jsonify({

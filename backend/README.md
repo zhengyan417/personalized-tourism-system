@@ -143,6 +143,16 @@ http://127.0.0.1:5000/api/diaries/?user_id=1
 
 - 若高德请求失败且成功回退到 OSRM，`provider` 字段会显示 `osrm` 且 `degraded: true`。
 
+4) 用户认证（auth）
+- POST `/api/auth/register`：注册（参数：`username`, `password`, `email?`）
+- POST `/api/auth/login`：登录（参数：`username`, `password`）
+- POST `/api/auth/logout`：退出登录（清理会话）
+- GET `/api/auth/me`：获取当前登录用户
+
+说明：
+- 使用 Flask 服务器端会话（需要配置 `SECRET_KEY`）。默认开启 CORS，前端同域或跨域都可使用。
+- 密码采用 `werkzeug.security.generate_password_hash` 存储，登录时校验哈希。
+
 4) 推荐（recommendation）
 - 后续将接入 C++ 核心算法（pybind11），当前可提供占位或回退逻辑
 
