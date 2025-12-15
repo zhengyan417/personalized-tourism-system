@@ -1,6 +1,6 @@
 # Frontend (Vue 3 + Vue Router + Bootstrap + Leaflet)
 
-基于 Vue 3 的前端子项目，集成 Vue Router、Bootstrap 5、Leaflet（高德瓦片源）。
+基于 Vue 3 的前端子项目，集成 Vue Router、Bootstrap 5、Leaflet（OpenStreetMap 瓦片）。
 
 ## 环境要求
 
@@ -52,10 +52,9 @@ npm run frontend:build
 ## 备注
 
 - 默认后端地址：`http://localhost:5000`（可通过环境变量 `VUE_APP_API_BASE_URL` 覆盖）
-- 地图底图使用高德矢量瓦片 `style=7`，仅用于开发演示，具体使用条款请遵循高德地图要求。
+- 地图底图改为 OpenStreetMap（与 OSRM 路由配套）；请遵循 OSM 使用政策（合理并发与缓存）。
 - 若需要切换为 Hash/History 路由，请在 `src/router/index.js` 调整创建方式，并配合后端做回退。
-- 路径规划页支持高德/OSRM 双提供商切换：当 `provider` 选择 `自动` 时优先请求高德，后端在无高德密钥或限流时会自动降级到 OSRM。
-- 后端需要设置 `AMAP_API_KEY` 环境变量才能启用高德路径规划；若缺失则 UI 会显示 OSRM 回退提示。
+- 导航提供商统一为 OSRM（后端 `/api/routes/navigate` 已固定使用 OSRM）。
 
 ## API 使用
 
@@ -68,7 +67,7 @@ npm run frontend:build
 	- `fetchHotRecommendations(params)`
 	- `searchRecommendations(params)`
 - 路径规划：`src/api/route.js`
-	- `fetchRoadRoute(params)` 支持 `provider` 字段（`auto`/`amap`/`osrm`），默认 `auto`；当后端返回 `degraded=true` 时表示已回退至 OSRM。
+	- `fetchRoadRoute(params)` 可不传 `provider`（后端已固定为 OSRM）。
 
 后端本地开发默认端口 5000，若不同请在前端以 `.env.development` 配置：
 
@@ -135,7 +134,8 @@ Props：
 	- 首页一体化：在 Home 集成“附近 / 推荐 / 路径 / 日记”四个功能 Tab，地图全屏展示 + 左侧面板操作即可完成全部功能。
 	- 面板交互：左侧功能面板支持拖动；右上角提供定位快捷按钮。
 	- 附近：新增经纬度输入与“取地图中心”，可直接输入/定位作为查询点；类别/半径筛选保留。
-- 2025-11-18 路径规划升级：新增导航提供商选择器说明、`fetchRoadRoute` provider 参数文档以及高德密钥配置提示。
+-- 2025-11-18 路径规划升级：新增导航提供商选择器说明、`fetchRoadRoute` provider 参数文档以及高德密钥配置提示。
+- 2025-12-01 地图底图切换为 OpenStreetMap；后端导航统一 OSRM，前端文档同步更新。
 	- 推荐：将偏好设置压缩为紧凑行（算法/排序/TopN），类别筛选置于“更多”折叠；与地图联动。
 	- 日记：新增 TravelDiary 页面与 API（src/api/diary.js）；在首页可直接新建/浏览日记并在地图上查看位置。
 	- 主题：加入深浅色主题切换组件（ThemeToggle），地图样式适配暗色模式。

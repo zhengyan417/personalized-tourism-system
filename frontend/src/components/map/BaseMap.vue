@@ -74,7 +74,8 @@ export default {
       _pendingRoadRender: false,
       _pendingRoadLatLngs: null,
       _pendingRoadClear: false,
-      _fallbackAdded: false
+      _fallbackAdded: false,
+      _tileErrorLogged: false
     }
   },
   computed: {
@@ -153,8 +154,12 @@ export default {
       clearTimeout(this._initTimer)
       this._initTimer = null
     }
+    if (this._geoWatchId) {
+      try { navigator.geolocation.clearWatch(this._geoWatchId) } catch (e) {}
+      this._geoWatchId = null
+    }
     if (this.map) {
-      try { this.map.off() } catch {}
+      try { this.map.off() } catch (e) {}
       try { this.map.remove() } catch (e) {}
       this.map = null
       this._mapReady = false
@@ -178,28 +183,31 @@ export default {
         el.style.height = typeof this.height === 'number' ? `${this.height}px` : this.height
       }
   // 启用动画（平滑体验），但后续方法会根据 canAnimate 动态决定是否播放动画
-  this.map = L.map(el, { zoomAnimation: true, zoomAnimationThreshold: 4, fadeAnimation: true, preferCanvas: true }).setView(this.center, this.zoom)
-      // 使用 https 避免在 https 站点下出现 Mixed Content 报错；添加 fallback 逻辑
-      const layer = L.tileLayer('https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=7&x={x}&y={y}&z={z}', {
+  this.map = L.map(el, { 
+    zoomAnimation: true, 
+    zoomAnimationThreshold: 4, 
+    fadeAnimation: true, 
+    preferCanvas: true,
+    zoomControl: true
+  }).setView(this.center, this.zoom)
+      
+      // 使用 OpenStreetMap 作为默认底图（与 OSRM 路由生态一致）
+      const layer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
-        subdomains: ['1','2','3','4'],
-        attribution: '© 高德地图'
+        minZoom: 3,
+        attribution: '© OpenStreetMap contributors',
+        errorTileUrl: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7' // 透明1x1 gif
       })
+      
+      // 添加瓦片错误处理，静默失败
       layer.on('tileerror', (e) => {
-        // 仅首次报错后尝试添加 OSM 兜底图层，避免每次缩放输出错误
-        if (!this._fallbackAdded) {
-          this._fallbackAdded = true
-          console.warn('[BaseMap] 高德瓦片加载失败，切换到 OpenStreetMap 备用图源')
-          try {
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-              maxZoom: 19,
-              attribution: '© OpenStreetMap'
-            }).addTo(this.map)
-          } catch (err) {
-            console.error('[BaseMap] 添加备用图层失败', err)
-          }
+        // 避免瓦片加载错误导致红色界面
+        if (!this._tileErrorLogged) {
+          this._tileErrorLogged = true
+          console.warn('[BaseMap] 部分地图瓦片加载失败（网络问题或缩放过快），不影响使用')
         }
       })
+      
       layer.addTo(this.map)
 
   // 初始化标记图层
@@ -233,7 +241,15 @@ export default {
       })
       this.map.on('zoomend', () => {
         this._zooming = false
-        this._flushPendingRoadPath && this._flushPendingRoadPath()
+        try {
+          this._flushPendingRoadPath && this._flushPendingRoadPath()
+        } catch (e) {
+          console.warn('[BaseMap] 缩放后刷新路径失败', e)
+        }
+      })
+      // 添加额外的缩放动画保护
+      this.map.on('zoomanim', () => {
+        this._zooming = true
       })
       // 通用地图点击事件：向父组件发送点击位置（经纬度）
       this.map.on('click', (e) => {
@@ -254,7 +270,15 @@ export default {
     },
     renderMarkers() {
       if (!this.map || !this._markerLayer) return
-      this._markerLayer.clearLayers()
+      // 避免在缩放动画期间清空图层（防止红色错误界面）
+      if (this._zooming) {
+        return
+      }
+      try {
+        this._markerLayer.clearLayers()
+      } catch (e) {
+        console.warn('[BaseMap] 清理标记图层时出错，已忽略', e)
+      }
       this._markerMap.clear()
       if (!Array.isArray(this.markers)) return
       const bounds = []
@@ -370,7 +394,13 @@ export default {
     },
     _clearRoadPolyline() {
       if (this._roadPolyline) {
-        try { this._routeLayer.removeLayer(this._roadPolyline) } catch (e) {}
+        try { 
+          if (this._routeLayer && this._routeLayer.hasLayer && this._routeLayer.hasLayer(this._roadPolyline)) {
+            this._routeLayer.removeLayer(this._roadPolyline)
+          }
+        } catch (e) {
+          console.warn('[BaseMap] 清理路径线时出错，已忽略', e)
+        }
         this._roadPolyline = null
       }
     },

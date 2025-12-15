@@ -1,23 +1,32 @@
 <template>
 	<div class="container py-3">
+		<!-- 未登录提示 -->
+		<div v-if="!userId" class="alert alert-warning d-flex align-items-center justify-content-between" role="alert">
+			<div>
+				<i class="bi bi-exclamation-triangle-fill me-2"></i>
+				您还未登录，请先登录后才能创建和查看日记
+			</div>
+			<router-link to="/login" class="btn btn-sm btn-primary">前往登录</router-link>
+		</div>
+		
 		<div class="row g-3">
 			<div class="col-12 col-lg-5">
 				<div class="card mb-3">
 					<div class="card-header d-flex align-items-center justify-content-between">
 						<strong>新增日记</strong>
 						<div class="btn-group">
-							<button class="btn btn-sm btn-outline-primary" @click="useMyLocation">使用当前位置</button>
+							<button class="btn btn-sm btn-outline-primary" @click="useMyLocation" :disabled="!userId">使用当前位置</button>
 							<button class="btn btn-sm btn-outline-secondary" @click="clearForm">清空</button>
 						</div>
 					</div>
 					<div class="card-body">
 						<div class="mb-2">
 							<label class="form-label">标题</label>
-							<input v-model.trim="form.title" type="text" class="form-control" placeholder="请输入标题" />
+							<input v-model.trim="form.title" type="text" class="form-control" placeholder="请输入标题" :disabled="!userId" />
 						</div>
 						<div class="mb-2">
 							<label class="form-label">内容</label>
-							<textarea v-model.trim="form.content" class="form-control" rows="5" placeholder="记录你的旅途…"></textarea>
+							<textarea v-model.trim="form.content" class="form-control" rows="5" placeholder="记录你的旅途…" :disabled="!userId"></textarea>
 						</div>
 						<div class="mb-2">
 							<label class="form-label">关联景点</label>
@@ -41,17 +50,17 @@
 						<div class="row g-2">
 							<div class="col-6">
 								<label class="form-label">纬度</label>
-								<input v-model.number="form.latitude" type="number" step="0.000001" class="form-control" />
+								<input v-model.number="form.latitude" type="number" step="0.000001" class="form-control" :disabled="!userId" />
 							</div>
 							<div class="col-6">
 								<label class="form-label">经度</label>
-								<input v-model.number="form.longitude" type="number" step="0.000001" class="form-control" />
+								<input v-model.number="form.longitude" type="number" step="0.000001" class="form-control" :disabled="!userId" />
 							</div>
 						</div>
 						<div class="form-text text-muted">可直接在右侧地图点击选点，坐标会自动填入。</div>
 					</div>
 					<div class="card-footer d-flex justify-content-end gap-2">
-						<button class="btn btn-primary" :disabled="submitting" @click="submitDiary">
+						<button class="btn btn-primary" :disabled="submitting || !userId" @click="submitDiary">
 							<span v-if="submitting" class="spinner-border spinner-border-sm me-2"></span>提交
 						</button>
 					</div>
@@ -75,8 +84,9 @@
 								<strong>{{ d.title }}</strong>
 								<small class="text-muted">{{ d.date || '-' }}</small>
 							</div>
-							<div class="text-muted small">
-								{{ d.attraction_name || '未关联景点' }}
+							<div class="text-muted small mb-1">
+								<i class="bi bi-person-circle"></i> {{ d.username || '匿名用户' }}
+								<span class="ms-2"><i class="bi bi-geo-alt"></i> {{ d.attraction_name || '未关联景点' }}</span>
 							</div>
 							<div class="text-muted small ellipsis-2">
 								{{ d.snippet || d.content || '（无内容）' }}
@@ -86,9 +96,12 @@
 					</ul>
 					<div v-if="selectedDiary" class="card-body border-top">
 						<h6 class="mb-2">{{ selectedDiary.title }}</h6>
-						<div class="text-muted small mb-2">{{ selectedDiary.date || '-' }}</div>
+						<div class="text-muted small mb-2">
+							<i class="bi bi-calendar3"></i> {{ selectedDiary.date || '-' }}
+							<span class="ms-3"><i class="bi bi-person-circle"></i> {{ selectedDiary.username || '匿名用户' }}</span>
+						</div>
 						<div class="text-primary small mb-2">
-							目的地：{{ selectedDiary.attraction_name || '未关联景点' }}
+							<i class="bi bi-geo-alt-fill"></i> {{ selectedDiary.attraction_name || '未关联景点' }}
 						</div>
 						<p class="mb-0 white-prewrap">{{ selectedDiary.content || selectedDiary.snippet }}</p>
 					</div>
@@ -116,13 +129,14 @@
 import BaseMap from '@/components/map/BaseMap.vue'
 import { fetchDiaries, fetchDiaryDetail, createDiary, deleteDiary as removeDiary } from '@/api/diary'
 import { fetchAllPlaces } from '@/api/place'
+import { me } from '@/api/auth'
 
 export default {
 	name: 'TravelDiary',
 	components: { BaseMap },
 	data() {
 		return {
-			userId: 1,
+			userId: null,
 			diaries: [],
 			selectedId: null,
 			selectedDiary: null,
@@ -165,9 +179,28 @@ export default {
 		}
 	},
 	async mounted() {
-		await Promise.all([this.loadDiaries(), this.loadAttractions()])
+		await this.loadCurrentUser()
+		if (this.userId) {
+			await Promise.all([this.loadDiaries(), this.loadAttractions()])
+		}
 	},
 	methods: {
+		async loadCurrentUser() {
+			try {
+				const { data } = await me()
+				if (data && data.status === 'success' && data.data) {
+					this.userId = data.data.user_id
+				} else {
+					// 未登录，但不立即跳转，让用户可以查看页面
+					console.warn('用户未登录')
+					this.userId = null
+				}
+			} catch (e) {
+				console.error('获取用户信息失败', e)
+				// 网络错误或其他问题，不强制跳转
+				this.userId = null
+			}
+		},
 		async loadAttractions() {
 			this.attractionLoading = true
 			try {
@@ -201,6 +234,7 @@ export default {
 			}
 		},
 		async loadDiaries() {
+			if (!this.userId) return []
 			const params = { user_id: this.userId }
 			try {
 				const list = await fetchDiaries(params)
@@ -224,6 +258,10 @@ export default {
 			}
 		},
 		async submitDiary() {
+			if (!this.userId) {
+				// 用户未登录，页面上已有提示条
+				return
+			}
 			if (!this.form.title || !this.form.content) return
 			this.submitting = true
 			try {

@@ -84,7 +84,97 @@ def logout():
 @auth_bp.route('/me', methods=['GET'])
 def me():
     uid = session.get('user_id')
-    uname = session.get('username')
     if not uid:
         return jsonify({'status': 'error', 'message': '未登录'}), 401
-    return jsonify({'status': 'success', 'data': {'id': uid, 'username': uname}})
+    
+    # 获取完整用户信息（包括个人资料）
+    conn = get_db()
+    with conn.cursor() as cur:
+        cur.execute("""
+            SELECT user_id, username, email, age, occupation, bio, avatar, created_at, updated_at 
+            FROM users WHERE user_id=%s
+        """, (uid,))
+        row = cur.fetchone()
+        
+    if not row:
+        return jsonify({'status': 'error', 'message': '用户不存在'}), 404
+    
+    user_data = {
+        'id': row['user_id'],
+        'username': row['username'],
+        'email': row['email'],
+        'age': row['age'],
+        'occupation': row['occupation'],
+        'bio': row['bio'],
+        'avatar': row['avatar'],
+        'created_at': str(row['created_at']) if row['created_at'] else None,
+        'updated_at': str(row['updated_at']) if row['updated_at'] else None
+    }
+    
+    return jsonify({'status': 'success', 'data': user_data})
+
+
+@auth_bp.route('/profile', methods=['GET', 'PUT'])
+def profile():
+    """获取或更新用户资料"""
+    uid = session.get('user_id')
+    if not uid:
+        return jsonify({'status': 'error', 'message': '未登录'}), 401
+    
+    conn = get_db()
+    
+    if request.method == 'GET':
+        # 获取用户资料
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT user_id, username, email, age, occupation, bio, avatar, created_at, updated_at 
+                FROM users WHERE user_id=%s
+            """, (uid,))
+            row = cur.fetchone()
+            
+        if not row:
+            return jsonify({'status': 'error', 'message': '用户不存在'}), 404
+        
+        user_data = {
+            'id': row['user_id'],
+            'username': row['username'],
+            'email': row['email'],
+            'age': row['age'],
+            'occupation': row['occupation'],
+            'bio': row['bio'],
+            'avatar': row['avatar'],
+            'created_at': str(row['created_at']) if row['created_at'] else None,
+            'updated_at': str(row['updated_at']) if row['updated_at'] else None
+        }
+        
+        return jsonify({'status': 'success', 'data': user_data})
+    
+    elif request.method == 'PUT':
+        # 更新用户资料
+        data = request.get_json(silent=True) or {}
+        
+        # 允许更新的字段
+        age = data.get('age')
+        occupation = (data.get('occupation') or '').strip() or None
+        bio = (data.get('bio') or '').strip() or None
+        avatar = (data.get('avatar') or '').strip() or None
+        email = (data.get('email') or '').strip() or None
+        
+        # 验证年龄
+        if age is not None:
+            try:
+                age = int(age)
+                if age < 0 or age > 150:
+                    return jsonify({'status': 'error', 'message': '年龄必须在0-150之间'}), 400
+            except (ValueError, TypeError):
+                return jsonify({'status': 'error', 'message': '年龄格式错误'}), 400
+        
+        with conn.cursor() as cur:
+            cur.execute("""
+                UPDATE users 
+                SET age=%s, occupation=%s, bio=%s, avatar=%s, email=%s
+                WHERE user_id=%s
+            """, (age, occupation, bio, avatar, email, uid))
+            conn.commit()
+        
+        return jsonify({'status': 'success', 'message': '资料更新成功'})

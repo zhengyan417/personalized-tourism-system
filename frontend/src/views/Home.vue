@@ -183,6 +183,7 @@
 		<!-- 右上角快捷按钮 -->
 		<div class="home-actions">
 			<button class="btn btn-sm btn-outline-primary" @click="locate">定位</button>
+			<button class="btn btn-sm btn-outline-secondary ms-2" @click="goLogin">登录</button>
 		</div>
 	</div>
 </template>
@@ -243,6 +244,9 @@ export default {
 			await Promise.all([this.loadNearby(), this.refreshRecommend(), this.loadDiaries()])
 	},
 	methods: {
+		goLogin() {
+			try { this.$router.push('/login') } catch (e) {}
+		},
 			// 面板拖动
 			onDragStart(e) {
 				this.dragging.active = true

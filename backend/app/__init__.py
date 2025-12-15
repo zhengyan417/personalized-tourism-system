@@ -13,8 +13,18 @@ def create_app():
     app = Flask(__name__)
     app.config.from_object('config.Config')
 
-    # 允许跨域请求
-    CORS(app)
+    # 允许跨域请求，携带 Cookie 以保持登录状态
+    # 使用正则匹配所有本地开发端口
+    CORS(app, supports_credentials=True, resources={
+        r"/*": {
+            "origins": [
+                r"^http://localhost:\d+$",
+                r"^http://127\.0\.0\.1:\d+$"
+            ]
+        }
+    })
+    
+    print(">>> 后端服务已启动，CORS 配置已更新 (支持 Cookie)")
 
     # 初始化数据库连接
     init_db(app)

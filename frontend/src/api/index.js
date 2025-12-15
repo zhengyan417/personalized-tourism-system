@@ -46,7 +46,8 @@ const api = axios.create({
   timeout: 15000,
   headers: {
     'Content-Type': 'application/json'
-  }
+  },
+  withCredentials: true // 携带 Cookie 以保持登录会话
 })
 
 api.interceptors.response.use(

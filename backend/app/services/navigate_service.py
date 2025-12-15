@@ -32,7 +32,7 @@ except ImportError:  # pragma: no cover
 
 
 OSRM_BASE_DEFAULT = "https://router.project-osrm.org"
-OSRM_DEFAULT_TIMEOUT = 8  # 秒
+OSRM_DEFAULT_TIMEOUT = 15  # 秒，增加超时时间以应对网络延迟
 
 AMAP_BASE_URL = "https://restapi.amap.com"
 AMAP_TIMEOUT = 6
