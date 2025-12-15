@@ -23,4 +23,15 @@ const router = createRouter({
 	routes
 })
 
+// 添加路由守卫，在导航前确保地图动画完成
+router.beforeEach((to, from, next) => {
+	// 给当前页面的地图组件一点时间停止动画
+	if (from.name) {
+		// 使用 setTimeout 0 确保当前事件循环完成
+		setTimeout(() => next(), 0)
+	} else {
+		next()
+	}
+})
+
 export default router

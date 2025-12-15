@@ -189,7 +189,9 @@ export default {
 			try {
 				const { data } = await me()
 				if (data && data.status === 'success' && data.data) {
-					this.userId = data.data.user_id
+					// 后端返回的是 id，不是 user_id
+					this.userId = data.data.id || data.data.user_id
+					console.log('用户已登录:', this.userId)
 				} else {
 					// 未登录，但不立即跳转，让用户可以查看页面
 					console.warn('用户未登录')

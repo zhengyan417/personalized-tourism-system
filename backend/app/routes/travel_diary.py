@@ -128,8 +128,7 @@ def _build_select_sql(include_location):
         "a.name AS attraction_name",
         "a.latitude AS attr_latitude",
         "a.longitude AS attr_longitude",
-        "u.username AS username",  # 添加用户名
-        "u.avatar AS user_avatar"  # 添加用户头像
+        "u.username AS username"  # 添加用户名
     ])
     select = f"SELECT {', '.join(fields)} FROM diaries d LEFT JOIN attractions a ON d.attraction_id = a.attraction_id LEFT JOIN users u ON d.user_id = u.user_id"
     return select

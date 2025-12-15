@@ -77,7 +77,7 @@ export default {
 	data() {
 		return {
 			query: '',
-			prefs: { algorithm: 'content_based', sort_by: 'score', top_n: 100, categories: [] },
+			prefs: { algorithm: 'content_based', sort_by: 'score', top_n: 30, categories: [] },
 			categories: ['历史景点','自然风光','景点','美食','自然','历史'],
 			list: [],
 			loading: false,

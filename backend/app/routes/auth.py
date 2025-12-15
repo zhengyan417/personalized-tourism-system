@@ -7,15 +7,11 @@ from app.services import auth_service
 auth_bp = Blueprint('auth', __name__)
 
 
-@auth_bp.after_request
-def _cors_fix(resp):
-    try:
-        resp.headers.setdefault('Access-Control-Allow-Origin', '*')
-        resp.headers.setdefault('Access-Control-Allow-Headers', 'Content-Type, Authorization')
-        resp.headers.setdefault('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-    except Exception:
-        pass
-    return resp
+# CORS 由全局 CORS(app) 统一处理，支持 credentials
+# @auth_bp.after_request
+# def _cors_fix(resp):
+#     # 不再手动设置 CORS 头，避免与全局配置冲突
+#     return resp
 
 
 def _find_user_by_username(conn, username: str):
@@ -91,7 +87,7 @@ def me():
     conn = get_db()
     with conn.cursor() as cur:
         cur.execute("""
-            SELECT user_id, username, email, age, occupation, bio, avatar, created_at, updated_at 
+            SELECT user_id, username, email, created_at
             FROM users WHERE user_id=%s
         """, (uid,))
         row = cur.fetchone()
@@ -103,12 +99,7 @@ def me():
         'id': row['user_id'],
         'username': row['username'],
         'email': row['email'],
-        'age': row['age'],
-        'occupation': row['occupation'],
-        'bio': row['bio'],
-        'avatar': row['avatar'],
-        'created_at': str(row['created_at']) if row['created_at'] else None,
-        'updated_at': str(row['updated_at']) if row['updated_at'] else None
+        'created_at': str(row['created_at']) if row['created_at'] else None
     }
     
     return jsonify({'status': 'success', 'data': user_data})
@@ -124,10 +115,11 @@ def profile():
     conn = get_db()
     
     if request.method == 'GET':
-        # 获取用户资料
+        # 获取用户资料（包括扩展字段）
         with conn.cursor() as cur:
             cur.execute("""
-                SELECT user_id, username, email, age, occupation, bio, avatar, created_at, updated_at 
+                SELECT user_id, username, email, age, occupation, bio, avatar, 
+                       created_at, updated_at
                 FROM users WHERE user_id=%s
             """, (uid,))
             row = cur.fetchone()
@@ -153,12 +145,16 @@ def profile():
         # 更新用户资料
         data = request.get_json(silent=True) or {}
         
-        # 允许更新的字段
+        # 获取更新字段
+        email = (data.get('email') or '').strip() or None
         age = data.get('age')
         occupation = (data.get('occupation') or '').strip() or None
         bio = (data.get('bio') or '').strip() or None
         avatar = (data.get('avatar') or '').strip() or None
-        email = (data.get('email') or '').strip() or None
+        
+        # 验证邮箱格式
+        if email and '@' not in email:
+            return jsonify({'status': 'error', 'message': '邮箱格式错误'}), 400
         
         # 验证年龄
         if age is not None:
@@ -169,12 +165,32 @@ def profile():
             except (ValueError, TypeError):
                 return jsonify({'status': 'error', 'message': '年龄格式错误'}), 400
         
-        with conn.cursor() as cur:
-            cur.execute("""
-                UPDATE users 
-                SET age=%s, occupation=%s, bio=%s, avatar=%s, email=%s
-                WHERE user_id=%s
-            """, (age, occupation, bio, avatar, email, uid))
-            conn.commit()
+        # 构建更新语句（只更新提供的字段）
+        update_fields = []
+        params = []
+        
+        if email is not None:
+            update_fields.append('email=%s')
+            params.append(email)
+        if age is not None:
+            update_fields.append('age=%s')
+            params.append(age)
+        if occupation is not None:
+            update_fields.append('occupation=%s')
+            params.append(occupation)
+        if bio is not None:
+            update_fields.append('bio=%s')
+            params.append(bio)
+        if avatar is not None:
+            update_fields.append('avatar=%s')
+            params.append(avatar)
+        
+        if update_fields:
+            params.append(uid)
+            sql = f"UPDATE users SET {', '.join(update_fields)} WHERE user_id=%s"
+            
+            with conn.cursor() as cur:
+                cur.execute(sql, params)
+                conn.commit()
         
         return jsonify({'status': 'success', 'message': '资料更新成功'})

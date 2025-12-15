@@ -9,6 +9,39 @@ import math
 
 # 创建蓝图对象
 place_bp = Blueprint('place', __name__)
+
+# -----------------------------------------
+# GET /api/places/categories
+# 获取所有景点类别
+# -----------------------------------------
+@place_bp.route('/categories', methods=['GET'])
+def get_categories():
+    """
+    返回所有景点类别列表
+    示例请求：GET /api/places/categories
+    """
+    try:
+        db = get_db()
+        with db.cursor() as cursor:
+            cursor.execute("""
+                SELECT DISTINCT category 
+                FROM attractions 
+                WHERE category IS NOT NULL AND category != '' 
+                ORDER BY category
+            """)
+            rows = cursor.fetchall()
+            categories = [row['category'] for row in rows]
+            
+        return jsonify({
+            'status': 'success',
+            'data': categories
+        }), 200
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': f'获取类别失败: {str(e)}'
+        }), 500
+
 # -----------------------------------------
 # 工具函数：Haversine公式计算两点距离（单位：公里）
 # -----------------------------------------
