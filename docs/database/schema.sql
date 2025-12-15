@@ -115,6 +115,8 @@ CREATE TABLE diaries (
     attraction_id INT COMMENT '关联景点',
     title VARCHAR(100) COMMENT '日记标题',
     content MEDIUMBLOB COMMENT '压缩后内容（二进制存储）',
+    latitude DECIMAL(10,6) NULL COMMENT '自定义记录的纬度',
+    longitude DECIMAL(10,6) NULL COMMENT '自定义记录的经度',
     create_time DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     FOREIGN KEY (user_id) REFERENCES users(user_id)
         ON DELETE CASCADE

@@ -8,6 +8,20 @@
 - MySQL 8.0（建议 utf8mb4）
 - 推荐安装工具：pip、virtualenv、VS Code
 
+## 配置与环境变量
+
+后端默认从环境变量读取 MySQL 与外部导航服务配置。开发环境可在 PowerShell/CMD 中通过 `set` 临时设置，或在部署脚本中写入 `.env`/系统变量。
+
+| 变量名 | 说明 | 默认值 |
+| --- | --- | --- |
+| `MYSQL_HOST`/`MYSQL_PORT`/`MYSQL_USER`/`MYSQL_PASSWORD`/`MYSQL_DB` | MySQL 连接信息 | `localhost` / `3306` / `root` / `lyy060519` / `travel_system` |
+| `SECRET_KEY` | Flask 会话密钥 | `dev-key` |
+| `OSRM_BASE_URL` | OSRM 服务地址 | `https://router.project-osrm.org` |
+| `AMAP_API_KEY` | 高德 Web 服务 REST API Key，用于更精确导航 | 无默认值（不设置时仅使用 OSRM 回退） |
+| `AMAP_API_SECRET` | （可选）高德服务安全密钥，用于签名请求 | 无 |
+
+> 提示：若未提供 `AMAP_API_KEY`，路径规划接口会自动退回到 OSRM Demo 服务，可能存在配额与精度限制。
+
 ## 快速开始
 
 1) 创建并激活虚拟环境（可选）
@@ -61,9 +75,14 @@ python app.py
 
 默认监听 `http://127.0.0.1:5000`。
 
-## 配置项（app/utils/database.py）
+## 配置项
 
-在 `app/utils/database.py` 中配置 MySQL 连接（host/user/password/database/charset）。推荐通过环境变量覆盖，或在生产环境使用更安全的配置管理。
+全局配置集中于 `config.py`，在 Flask 应用启动时加载。除数据库连接外，还包含第三方导航服务参数。推荐通过环境变量覆盖默认值，以避免将密钥写入仓库。数据库连接的最终落地仍在 `app/utils/database.py` 中读取。
+
+路径规划相关服务位于 `app/services/navigate_service.py`：
+
+- `provider` 查询参数可显式选择 `amap` 或 `osrm`；默认 `auto`，优先尝试高德（需要 `AMAP_API_KEY`），失败时自动降级到 OSRM。
+- 响应体包含 `provider`、`degraded`、`steps_detail` 等字段，以便前端展示当前导航来源与是否回退。
 
 ## 主要目录结构
 
@@ -107,7 +126,32 @@ http://127.0.0.1:5000/api/diaries/?user_id=1
 - GET/POST/PUT/DELETE 按 Blueprint 提供标准 CRUD（压缩存储内容）
 
 3) 路径规划（route_planning）
-- GET/POST 支持表单或 JSON 传参，使用 Haversine 距离做简化示例
+- GET/POST 支持表单或 JSON 传参，新增 `provider` 查询参数（`auto`/`amap`/`osrm`）。默认会尝试高德路线规划（需配置 `AMAP_API_KEY`），如遇限流或异常将自动降级至 OSRM。
+- 响应示例：
+
+```json
+{
+	"provider": "amap",
+	"degraded": false,
+	"summary": { "distance_km": 28.3, "duration_min": 46 },
+	"steps_detail": [
+		{ "name": "清华东路", "action": "直行", "distance_m": 1500 },
+		{ "name": "京藏高速", "action": "驶入", "distance_m": 5600 }
+	]
+}
+```
+
+- 若高德请求失败且成功回退到 OSRM，`provider` 字段会显示 `osrm` 且 `degraded: true`。
+
+4) 用户认证（auth）
+- POST `/api/auth/register`：注册（参数：`username`, `password`, `email?`）
+- POST `/api/auth/login`：登录（参数：`username`, `password`）
+- POST `/api/auth/logout`：退出登录（清理会话）
+- GET `/api/auth/me`：获取当前登录用户
+
+说明：
+- 使用 Flask 服务器端会话（需要配置 `SECRET_KEY`）。默认开启 CORS，前端同域或跨域都可使用。
+- 密码采用 `werkzeug.security.generate_password_hash` 存储，登录时校验哈希。
 
 4) 推荐（recommendation）
 - 后续将接入 C++ 核心算法（pybind11），当前可提供占位或回退逻辑
@@ -123,6 +167,15 @@ http://127.0.0.1:5000/api/diaries/?user_id=1
 - 核心缺口：
 	- 设施 API 尚未提供专门的 `GET /api/facilities/...` 路由（可后续补充）。
 	- `sample_data.sql` 暂为空；如需一键演示，可补充 10~20 条示例数据。
+
+## 部署脚本
+
+仓库根目录提供跨平台部署脚本：
+
+- `scripts/deploy.ps1`：Windows/PowerShell 环境下一键安装 Python 依赖、前端依赖并执行构建。
+- `scripts/deploy.sh`：Linux/macOS Shell 版本，支持可选参数控制是否构建前端。
+
+脚本会读取上述环境变量，请在运行前确保 `AMAP_API_KEY` 等敏感信息已正确注入。
 
 ## 常见问题（FAQ）
 

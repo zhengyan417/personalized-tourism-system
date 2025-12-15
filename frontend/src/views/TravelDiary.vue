@@ -19,6 +19,25 @@
 							<label class="form-label">内容</label>
 							<textarea v-model.trim="form.content" class="form-control" rows="5" placeholder="记录你的旅途…"></textarea>
 						</div>
+						<div class="mb-2">
+							<label class="form-label">关联景点</label>
+							<div class="input-group">
+								<select v-model="form.attraction_id" class="form-select" @change="onAttractionChange">
+									<option :value="null">未选择</option>
+									<option
+										v-for="place in attractions"
+										:key="place.id"
+										:value="place.id"
+									>
+										{{ place.name }}
+									</option>
+								</select>
+								<button class="btn btn-outline-secondary" type="button" :disabled="attractionLoading" @click="refreshAttractions">
+									<span v-if="attractionLoading" class="spinner-border spinner-border-sm me-1"></span>刷新
+								</button>
+							</div>
+							<div class="form-text text-muted">选择景点后可自动带入该景点的坐标。</div>
+						</div>
 						<div class="row g-2">
 							<div class="col-6">
 								<label class="form-label">纬度</label>
@@ -29,6 +48,7 @@
 								<input v-model.number="form.longitude" type="number" step="0.000001" class="form-control" />
 							</div>
 						</div>
+						<div class="form-text text-muted">可直接在右侧地图点击选点，坐标会自动填入。</div>
 					</div>
 					<div class="card-footer d-flex justify-content-end gap-2">
 						<button class="btn btn-primary" :disabled="submitting" @click="submitDiary">
@@ -38,13 +58,25 @@
 				</div>
 
 				<div class="card">
-					<div class="card-header">我的日记 ({{ diaries.length }})</div>
+					<div class="card-header d-flex justify-content-between align-items-center">
+						<span>我的日记 ({{ diaries.length }})</span>
+						<button
+							class="btn btn-sm btn-outline-danger"
+							:disabled="!selectedId || deleting"
+							@click="deleteDiaryEntry"
+						>
+							<span v-if="deleting" class="spinner-border spinner-border-sm me-1"></span>删除
+						</button>
+					</div>
 					<ul class="list-group list-group-flush list-scroll">
 						<li v-for="d in diaries" :key="d.id" class="list-group-item list-group-item-action"
 								:class="{ active: selectedId === d.id }" @click="selectDiary(d)">
 							<div class="d-flex justify-content-between align-items-center">
 								<strong>{{ d.title }}</strong>
 								<small class="text-muted">{{ d.date || '-' }}</small>
+							</div>
+							<div class="text-muted small">
+								{{ d.attraction_name || '未关联景点' }}
 							</div>
 							<div class="text-muted small ellipsis-2">
 								{{ d.snippet || d.content || '（无内容）' }}
@@ -55,6 +87,9 @@
 					<div v-if="selectedDiary" class="card-body border-top">
 						<h6 class="mb-2">{{ selectedDiary.title }}</h6>
 						<div class="text-muted small mb-2">{{ selectedDiary.date || '-' }}</div>
+						<div class="text-primary small mb-2">
+							目的地：{{ selectedDiary.attraction_name || '未关联景点' }}
+						</div>
 						<p class="mb-0 white-prewrap">{{ selectedDiary.content || selectedDiary.snippet }}</p>
 					</div>
 				</div>
@@ -70,6 +105,7 @@
 					:selected-id="selectedId"
 					@marker-click="onMarkerClick"
 					@location-update="onLocationUpdate"
+					@map-click="onMapClick"
 				/>
 			</div>
 		</div>
@@ -78,76 +114,143 @@
 
 <script>
 import BaseMap from '@/components/map/BaseMap.vue'
-import { fetchDiaries, fetchDiaryDetail, createDiary } from '@/api/diary'
+import { fetchDiaries, fetchDiaryDetail, createDiary, deleteDiary as removeDiary } from '@/api/diary'
+import { fetchAllPlaces } from '@/api/place'
 
 export default {
 	name: 'TravelDiary',
 	components: { BaseMap },
 	data() {
 		return {
+			userId: 1,
 			diaries: [],
 			selectedId: null,
 			selectedDiary: null,
 			submitting: false,
+			draftCoord: null,
+			deleting: false,
 			form: {
 				title: '',
 				content: '',
+				attraction_id: null,
 				latitude: null,
 				longitude: null
 			},
-			mapCenter: [39.9042, 116.4074]
+			mapCenter: [39.9042, 116.4074],
+			attractions: [],
+			attractionLoading: false
 		}
 	},
 	computed: {
 		markers() {
-			return (this.diaries || [])
+			const arr = (this.diaries || [])
 				.filter(d => typeof d.latitude === 'number' && typeof d.longitude === 'number')
 				.map(d => ({
 					id: d.id,
 					name: d.title,
 					latitude: d.latitude,
 					longitude: d.longitude,
-					popup: `${d.title}${d.date ? ' · ' + d.date : ''}`
+					popup: `${d.title}${d.date ? ' · ' + d.date : ''}${d.attraction_name ? '\n' + d.attraction_name : ''}`
 				}))
+			if (this.draftCoord && typeof this.draftCoord.latitude === 'number' && typeof this.draftCoord.longitude === 'number') {
+				arr.push({
+					id: '__draft__',
+					name: '新日记位置',
+					latitude: this.draftCoord.latitude,
+					longitude: this.draftCoord.longitude,
+					popup: '新日记（未保存）'
+				})
+			}
+			return arr
 		}
 	},
 	async mounted() {
-		await this.loadDiaries()
+		await Promise.all([this.loadDiaries(), this.loadAttractions()])
 	},
 	methods: {
-		async loadDiaries() {
+		async loadAttractions() {
+			this.attractionLoading = true
 			try {
-				const list = await fetchDiaries({ user_id: 1 })
+				const rows = await fetchAllPlaces()
+				this.attractions = rows.map(r => ({
+					id: r.attraction_id || r.id,
+					name: r.name,
+					latitude: typeof r.latitude === 'number' ? r.latitude : null,
+					longitude: typeof r.longitude === 'number' ? r.longitude : null
+				}))
+				if (this.form.attraction_id) this.onAttractionChange()
+			} catch (e) {
+				console.warn('加载景点列表失败', e)
+			} finally {
+				this.attractionLoading = false
+			}
+		},
+		refreshAttractions() {
+			this.loadAttractions()
+		},
+		onAttractionChange() {
+			if (this.form.attraction_id == null || this.form.attraction_id === '') {
+				return
+			}
+			const selected = this.attractions.find(p => String(p.id) === String(this.form.attraction_id))
+			if (selected && selected.latitude != null && selected.longitude != null) {
+				this.form.latitude = selected.latitude
+				this.form.longitude = selected.longitude
+				this.draftCoord = { latitude: selected.latitude, longitude: selected.longitude }
+				this.mapCenter = [selected.latitude, selected.longitude]
+			}
+		},
+		async loadDiaries() {
+			const params = { user_id: this.userId }
+			try {
+				const list = await fetchDiaries(params)
 				this.diaries = Array.isArray(list) ? list : []
 				if (this.diaries.length) {
 					this.selectedId = this.diaries[0].id
 					this.selectedDiary = this.diaries[0]
 					const firstWithCoord = this.diaries.find(d => typeof d.latitude === 'number' && typeof d.longitude === 'number')
 					if (firstWithCoord) this.mapCenter = [firstWithCoord.latitude, firstWithCoord.longitude]
+				} else {
+					this.selectedId = null
+					this.selectedDiary = null
 				}
+				return this.diaries
 			} catch (e) {
 				console.error('加载日记失败', e)
+				this.diaries = []
+				this.selectedId = null
+				this.selectedDiary = null
+				return []
 			}
 		},
 		async submitDiary() {
 			if (!this.form.title || !this.form.content) return
 			this.submitting = true
 			try {
-				const created = await createDiary({
-					user_id: 1,
+				const payload = {
+					user_id: this.userId,
 					title: this.form.title,
 					content: this.form.content,
-					latitude: this.form.latitude,
-					longitude: this.form.longitude
-				})
+					attraction_id: this.form.attraction_id,
+					latitude: this.form.latitude ?? this.draftCoord?.latitude,
+					longitude: this.form.longitude ?? this.draftCoord?.longitude
+				}
+				const created = await createDiary(payload)
 				if (created) {
-					this.diaries = [created, ...this.diaries]
-					this.selectedId = created.id
-					this.selectedDiary = created
-					if (typeof created.latitude === 'number' && typeof created.longitude === 'number') {
-						this.mapCenter = [created.latitude, created.longitude]
+					const newId = created.id ?? created.diary_id
+					await this.loadDiaries()
+					if (newId) {
+						const found = this.diaries.find(d => String(d.id) === String(newId))
+						if (found) {
+							this.selectedId = found.id
+							this.selectedDiary = found
+							if (typeof found.latitude === 'number' && typeof found.longitude === 'number') {
+								this.mapCenter = [found.latitude, found.longitude]
+							}
+						}
 					}
 					this.clearForm()
+					this.draftCoord = null
 				}
 			} catch (e) {
 				console.error('创建日记失败', e)
@@ -158,6 +261,7 @@ export default {
 		clearForm() {
 			this.form.title = ''
 			this.form.content = ''
+			this.form.attraction_id = null
 			this.form.latitude = null
 			this.form.longitude = null
 		},
@@ -167,7 +271,8 @@ export default {
 			try {
 				const detail = await fetchDiaryDetail(d.id)
 				this.selectedDiary = detail || d
-			} catch {
+			} catch (e) {
+				console.error('获取日记详情失败', e)
 				this.selectedDiary = d
 			}
 		},
@@ -184,6 +289,31 @@ export default {
 		},
 		useMyLocation() {
 			this.$refs.diaryMap?.locateUser?.(false)
+		},
+		onMapClick(pt) {
+			if (!pt) return
+			this.draftCoord = { latitude: pt.latitude, longitude: pt.longitude }
+			this.form.latitude = pt.latitude
+			this.form.longitude = pt.longitude
+			// 平滑移动中心
+			this.mapCenter = [pt.latitude, pt.longitude]
+		},
+		async deleteDiaryEntry() {
+			if (!this.selectedId || this.deleting) return
+			if (typeof window !== 'undefined' && !window.confirm('确定删除当前选中日记吗？')) return
+			this.deleting = true
+			try {
+				const ok = await removeDiary(this.selectedId)
+				if (ok) {
+					this.diaries = this.diaries.filter(d => String(d.id) !== String(this.selectedId))
+					this.selectedId = this.diaries[0]?.id ?? null
+					this.selectedDiary = this.diaries[0] ?? null
+				}
+			} catch (e) {
+				console.error('删除日记失败', e)
+			} finally {
+				this.deleting = false
+			}
 		}
 	}
 }

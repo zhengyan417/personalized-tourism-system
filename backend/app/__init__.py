@@ -6,6 +6,7 @@ from app.routes.place_query import place_bp
 from app.routes.travel_diary import diary_bp
 from app.routes.recommendation import rec_bp
 from app.routes.route_planning import route_bp
+from app.routes.auth import auth_bp
 
 def create_app():
     """创建并配置 Flask 应用"""
@@ -23,5 +24,6 @@ def create_app():
     app.register_blueprint(diary_bp, url_prefix='/api/diaries')
     app.register_blueprint(rec_bp, url_prefix="/api/recommendations")
     app.register_blueprint(route_bp, url_prefix="/api/routes")
+    app.register_blueprint(auth_bp, url_prefix="/api/auth")
 
     return app
