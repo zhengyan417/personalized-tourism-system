@@ -8,8 +8,9 @@
 			:offset-top="navbarHeight"
 			:markers="markers"
 			:selected-id="selectedId"
-			:route-mode="activeTab === 'route' && routeMode"
-			:route-markers="routeMarkers"
+			:route-mode="activeTab === 'route' && !!routePlanningMode"
+			:route-markers="routeMarkersForMap"
+			:planned-path="plannedPath"
 			@marker-click="onMarkerClick"
 			@location-update="onLocationUpdate"
 					@route-point-add="onRoutePointAdd"
@@ -128,18 +129,25 @@
 				<!-- 路径规划 -->
 				<div v-else-if="activeTab==='route'">
 					<div class="d-flex gap-2 mb-2 flex-wrap">
-						<button class="btn btn-sm" :class="routeMode ? 'btn-danger' : 'btn-primary'" @click="toggleRouteMode">{{ routeMode ? '停止添加点' : '开始添加点' }}</button>
-						<button class="btn btn-sm btn-outline-secondary" @click="undoRoute" :disabled="routeMarkers.length===0">撤销</button>
-						<button class="btn btn-sm btn-outline-secondary" @click="reverseRoute" :disabled="routeMarkers.length<2">反转</button>
-						<button class="btn btn-sm btn-outline-secondary" @click="clearRoute" :disabled="routeMarkers.length===0">清空</button>
-						<button class="btn btn-sm btn-outline-primary" @click="planSimpleRoute" :disabled="routeMarkers.length<2 || planning">
-							<span v-if="planning" class="spinner-border spinner-border-sm me-1"></span>计算
+						<button class="btn btn-sm btn-outline-primary" :class="{ active: routePlanningMode==='setStart' }" @click="setMode('setStart')">设起点</button>
+						<button class="btn btn-sm btn-outline-danger" :class="{ active: routePlanningMode==='setEnd' }" @click="setMode('setEnd')">设终点</button>
+						<button class="btn btn-sm btn-outline-secondary" :class="{ active: routePlanningMode==='addWaypoint' }" @click="setMode('addWaypoint')">加途经点</button>
+						<button class="btn btn-sm btn-outline-warning" @click="clearAllRoute" :disabled="!hasAnyRoutePoint">清空</button>
+						<button class="btn btn-sm btn-primary" @click="computeRoute" :disabled="!canPlan || planning">
+							<span v-if="planning" class="spinner-border spinner-border-sm me-1"></span>开始规划
 						</button>
 					</div>
+					<div class="route-summary small mb-2" v-if="distanceInfo">
+						<span>总距离: {{ distanceInfo.km }} km</span>
+						<span class="ms-2">步行: {{ distanceInfo.walkTime }}</span>
+						<span class="ms-2">骑行: {{ distanceInfo.bikeTime }}</span>
+					</div>
 					<ol class="small mb-2 ps-3">
-						<li v-for="(p,i) in routeMarkers" :key="i">{{ p.latitude }}, {{ p.longitude }}</li>
+						<li v-if="startPoint">起点: {{ startPoint.latitude }}, {{ startPoint.longitude }}</li>
+						<li v-for="(p,i) in waypoints" :key="'w'+i">途经{{ i+1 }}: {{ p.latitude }}, {{ p.longitude }}</li>
+						<li v-if="endPoint">终点: {{ endPoint.latitude }}, {{ endPoint.longitude }}</li>
 					</ol>
-					<div v-if="routeInfo" class="alert alert-info py-2 small">估算距离：{{ routeInfo.distance_km }} km</div>
+					<div v-if="routeError" class="alert alert-danger py-1 small">{{ routeError }}</div>
 				</div>
 
 				<!-- 日记 -->
@@ -207,7 +215,6 @@ export default {
 			selectedId: null,
 			// 路径
 			routeMode: false,
-			routeMarkers: [],
 			routeInfo: null,
 			planning: false,
 			// 附近
@@ -232,8 +239,53 @@ export default {
 				return (this.diary.list || []).filter(d => typeof d.latitude==='number' && typeof d.longitude==='number')
 					.map(d => ({ id: d.id, name: d.title, latitude: d.latitude, longitude: d.longitude, popup: `${d.title} · ${d.date||''}` }))
 			}
+			if (this.activeTab === 'route') {
+				const m = []
+				if (this.startPoint) m.push({ id: 'start', name: '起点', latitude: this.startPoint.latitude, longitude: this.startPoint.longitude, popup: '起点', color: '#2ecc71' })
+				this.waypoints.forEach((w, idx) => m.push({ id: 'wp'+idx, name: '途经'+(idx+1), latitude: w.latitude, longitude: w.longitude, popup: '途经点 '+(idx+1), color: '#f39c12' }))
+				if (this.endPoint) m.push({ id: 'end', name: '终点', latitude: this.endPoint.latitude, longitude: this.endPoint.longitude, popup: '终点', color: '#e74c3c' })
+				return m
+			}
 			return []
 		}
+		,
+		// Vuex state helpers
+		startPoint() { return this.$store.state.routePlanning.startPoint },
+		endPoint() { return this.$store.state.routePlanning.endPoint },
+		waypoints() { return this.$store.state.routePlanning.waypoints },
+		routePlanningMode() { return this.$store.state.routePlanning.currentMode },
+		hasAnyRoutePoint() { return !!(this.startPoint || this.endPoint || (this.waypoints && this.waypoints.length)) },
+		canPlan() { return !!(this.startPoint && this.endPoint) },
+		plannedPath() { return this.$store.state.routePlanning.calculatedRoute?.path || [] },
+		routeMarkersForMap() {
+			// 防御性构建：避免对非数组/非对象使用 push 导致运行时错误
+			try {
+				const out = []
+				if (this.startPoint && typeof this.startPoint === 'object') out.push(this.startPoint)
+				const wps = Array.isArray(this.waypoints) ? this.waypoints : (this.waypoints ? [this.waypoints] : [])
+				wps.forEach(w => { if (w && typeof w === 'object') out.push(w) })
+				if (this.endPoint && typeof this.endPoint === 'object') out.push(this.endPoint)
+				return out.filter(p => p && typeof p.latitude === 'number' && typeof p.longitude === 'number')
+					.map(p => ({ latitude: p.latitude, longitude: p.longitude }))
+			} catch (e) {
+				console.warn('[Home] routeMarkersForMap 构造失败，返回空数组', e)
+				return []
+			}
+		},
+		distanceInfo() {
+			const total = this.$store.state.routePlanning.calculatedRoute?.total_distance
+			if (!total || isNaN(total)) return null
+			const km = Number(total).toFixed(2)
+			const walkHours = total / 5
+			const bikeHours = total / 15
+			const format = (h) => {
+				const hours = Math.floor(h)
+				const mins = Math.round((h - hours) * 60)
+				return hours ? `${hours}h${mins}m` : `${mins}m`
+			}
+			return { km, walkTime: format(walkHours), bikeTime: format(bikeHours) }
+		},
+		routeError() { return this.$store.state.routePlanning.error }
 	},
 	async mounted() {
 		// 初始化类别、附近与推荐、日记
@@ -337,21 +389,42 @@ export default {
 			if (typeof r.latitude==='number' && typeof r.longitude==='number') this.mapCenter = [r.latitude, r.longitude]
 		},
 		// --- 路径 ---
-		toggleRouteMode() { this.routeMode = !this.routeMode },
-		undoRoute() { if (this.routeMarkers.length) this.routeMarkers.pop() },
-		clearRoute() { this.routeMarkers = []; this.routeInfo = null },
-		reverseRoute() { if (this.routeMarkers.length>=2) this.routeMarkers = [...this.routeMarkers].reverse() },
-		async planSimpleRoute() {
-			if (this.routeMarkers.length < 2) return
-			this.planning = true
-			try {
-				const info = await planSimple(this.routeMarkers[0], this.routeMarkers[this.routeMarkers.length - 1])
-				this.routeInfo = info
-			} catch (e) { console.error('路线计算失败', e); this.routeInfo = null } finally { this.planning = false }
+		setMode(mode) { this.$store.commit('routePlanning/setMode', mode) },
+		clearAllRoute() { this.$store.commit('routePlanning/clearAll') },
+		onRoutePointAdd(p) {
+			const mode = this.routePlanningMode
+			if (!mode) return
+			const point = { ...p, id: `${Date.now()}-${Math.random()}` }
+			if (mode === 'setStart') this.$store.commit('routePlanning/setStart', point)
+			else if (mode === 'setEnd') this.$store.commit('routePlanning/setEnd', point)
+			else if (mode === 'addWaypoint') this.$store.commit('routePlanning/addWaypoint', point)
 		},
-		// 来自 BaseMap 的事件
-		// route-point-add
-		onRoutePointAdd(p) { this.routeMarkers = [...this.routeMarkers, p] },
+		generateRouteRequest() {
+			return {
+				start_id: this.startPoint?.id,
+				end_id: this.endPoint?.id,
+				waypoint_ids: this.waypoints.map(w => w.id)
+			}
+		},
+		async computeRoute() {
+			if (!this.canPlan) return
+			const payload = this.generateRouteRequest()
+			this.planning = true
+			this.$store.commit('routePlanning/setLoading', true)
+			this.$store.commit('routePlanning/setError', '')
+			try {
+				const { planRoute } = await import('../api/routePlanning.js')
+				const data = await planRoute(payload)
+				this.$store.commit('routePlanning/setCalculatedRoute', data)
+			} catch (e) {
+				console.error('规划失败', e)
+				this.$store.commit('routePlanning/setError', e.message || '规划失败')
+				alert(e.message || '规划失败')
+			} finally {
+				this.planning = false
+				this.$store.commit('routePlanning/setLoading', false)
+			}
+		},
 		// --- 日记 ---
 		async loadDiaries() {
 			try {
