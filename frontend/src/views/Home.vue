@@ -402,7 +402,6 @@ export default {
 			selectedId: null,
 			// 路径
 			routeMode: false,
-			routeMarkers: [],
 			routeInfo: null,
 			planning: false,
 			// 附近
@@ -438,6 +437,13 @@ export default {
 			if (this.activeTab === 'diary') {
 				return (this.diary.list || []).filter(d => typeof d.latitude==='number' && typeof d.longitude==='number')
 					.map(d => ({ id: d.id, name: d.title, latitude: d.latitude, longitude: d.longitude, popup: `${d.title} · ${d.date||''}` }))
+			}
+			if (this.activeTab === 'route') {
+				const m = []
+				if (this.startPoint) m.push({ id: 'start', name: '起点', latitude: this.startPoint.latitude, longitude: this.startPoint.longitude, popup: '起点', color: '#2ecc71' })
+				this.waypoints.forEach((w, idx) => m.push({ id: 'wp'+idx, name: '途经'+(idx+1), latitude: w.latitude, longitude: w.longitude, popup: '途经点 '+(idx+1), color: '#f39c12' }))
+				if (this.endPoint) m.push({ id: 'end', name: '终点', latitude: this.endPoint.latitude, longitude: this.endPoint.longitude, popup: '终点', color: '#e74c3c' })
+				return m
 			}
 			return []
 		}
@@ -534,17 +540,41 @@ export default {
 			if (typeof r.latitude==='number' && typeof r.longitude==='number') this.mapCenter = [r.latitude, r.longitude]
 		},
 		// --- 路径 ---
-		toggleRouteMode() { this.routeMode = !this.routeMode },
-		undoRoute() { if (this.routeMarkers.length) this.routeMarkers.pop() },
-		clearRoute() { this.routeMarkers = []; this.routeInfo = null },
-		reverseRoute() { if (this.routeMarkers.length>=2) this.routeMarkers = [...this.routeMarkers].reverse() },
-		async planSimpleRoute() {
-			if (this.routeMarkers.length < 2) return
+		setMode(mode) { this.$store.commit('routePlanning/setMode', mode) },
+		clearAllRoute() { this.$store.commit('routePlanning/clearAll') },
+		onRoutePointAdd(p) {
+			const mode = this.routePlanningMode
+			if (!mode) return
+			const point = { ...p, id: `${Date.now()}-${Math.random()}` }
+			if (mode === 'setStart') this.$store.commit('routePlanning/setStart', point)
+			else if (mode === 'setEnd') this.$store.commit('routePlanning/setEnd', point)
+			else if (mode === 'addWaypoint') this.$store.commit('routePlanning/addWaypoint', point)
+		},
+		generateRouteRequest() {
+			return {
+				start_id: this.startPoint?.id,
+				end_id: this.endPoint?.id,
+				waypoint_ids: this.waypoints.map(w => w.id)
+			}
+		},
+		async computeRoute() {
+			if (!this.canPlan) return
+			const payload = this.generateRouteRequest()
 			this.planning = true
+			this.$store.commit('routePlanning/setLoading', true)
+			this.$store.commit('routePlanning/setError', '')
 			try {
-				const info = await planSimple(this.routeMarkers[0], this.routeMarkers[this.routeMarkers.length - 1])
-				this.routeInfo = info
-			} catch (e) { console.error('路线计算失败', e); this.routeInfo = null } finally { this.planning = false }
+				const { planRoute } = await import('../api/routePlanning.js')
+				const data = await planRoute(payload)
+				this.$store.commit('routePlanning/setCalculatedRoute', data)
+			} catch (e) {
+				console.error('规划失败', e)
+				this.$store.commit('routePlanning/setError', e.message || '规划失败')
+				alert(e.message || '规划失败')
+			} finally {
+				this.planning = false
+				this.$store.commit('routePlanning/setLoading', false)
+			}
 		},
 		// 来自 BaseMap 的事件
 		// route-point-add
