@@ -118,7 +118,8 @@ def profile():
         # 获取用户资料（包括扩展字段）
         with conn.cursor() as cur:
             cur.execute("""
-                SELECT user_id, username, email, age, occupation, bio, avatar, 
+                SELECT user_id, username, email, age, occupation, bio, avatar,
+                       travel_persona, favorite_cities,
                        created_at, updated_at
                 FROM users WHERE user_id=%s
             """, (uid,))
@@ -135,6 +136,8 @@ def profile():
             'occupation': row['occupation'],
             'bio': row['bio'],
             'avatar': row['avatar'],
+            'travel_persona': row.get('travel_persona'),
+            'favorite_cities': row.get('favorite_cities'),
             'created_at': str(row['created_at']) if row['created_at'] else None,
             'updated_at': str(row['updated_at']) if row['updated_at'] else None
         }
@@ -151,6 +154,8 @@ def profile():
         occupation = (data.get('occupation') or '').strip() or None
         bio = (data.get('bio') or '').strip() or None
         avatar = (data.get('avatar') or '').strip() or None
+        travel_persona = (data.get('travel_persona') or '').strip() or None
+        favorite_cities = (data.get('favorite_cities') or '').strip() or None
         
         # 验证邮箱格式
         if email and '@' not in email:
@@ -184,6 +189,12 @@ def profile():
         if avatar is not None:
             update_fields.append('avatar=%s')
             params.append(avatar)
+        if travel_persona is not None:
+            update_fields.append('travel_persona=%s')
+            params.append(travel_persona)
+        if favorite_cities is not None:
+            update_fields.append('favorite_cities=%s')
+            params.append(favorite_cities)
         
         if update_fields:
             params.append(uid)

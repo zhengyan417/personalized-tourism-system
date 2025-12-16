@@ -1,189 +1,379 @@
 <template>
-	<div>
-		<BaseMap
-			ref="baseMap"
-			:center="mapCenter"
-			:zoom="11"
-			:full-screen="true"
-			:offset-top="navbarHeight"
-			:markers="markers"
-			:selected-id="selectedId"
-			:route-mode="activeTab === 'route' && routeMode"
-			:route-markers="routeMarkers"
-			@marker-click="onMarkerClick"
-			@location-update="onLocationUpdate"
-					@route-point-add="onRoutePointAdd"
-		/>
-
+	<div class="h-[calc(100vh-64px)] flex flex-col md:flex-row bg-gray-50 relative">
 		<!-- 左侧功能面板 -->
-			<div class="home-panel card shadow-sm" :style="{ top: panelPos.top + 'px', left: panelPos.left + 'px' }">
-				<div class="card-header p-2 panel-drag-handle" @mousedown="onDragStart">
-				<ul class="nav nav-tabs card-header-tabs small">
-					<li class="nav-item"><a class="nav-link" :class="{ active: activeTab==='place' }" href="#" @click.prevent="switchTab('place')">附近</a></li>
-					<li class="nav-item"><a class="nav-link" :class="{ active: activeTab==='recommend' }" href="#" @click.prevent="switchTab('recommend')">推荐</a></li>
-					<li class="nav-item"><a class="nav-link" :class="{ active: activeTab==='route' }" href="#" @click.prevent="switchTab('route')">路径</a></li>
-					<li class="nav-item"><a class="nav-link" :class="{ active: activeTab==='diary' }" href="#" @click.prevent="switchTab('diary')">日记</a></li>
-				</ul>
+		<div class="w-full md:w-[400px] bg-white border-r border-gray-200 flex flex-col shadow-xl z-20 h-full">
+			<!-- 顶部 Tab 切换 -->
+			<div class="flex border-b border-gray-100 bg-white shrink-0">
+				<button 
+					v-for="tab in tabs" 
+					:key="tab.id"
+					@click="switchTab(tab.id)"
+					class="flex-1 py-3 text-sm font-semibold flex items-center justify-center gap-2 transition-colors"
+					:class="activeTab === tab.id ? 'text-brand-600 border-b-2 border-brand-500 bg-brand-50/50' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'"
+				>
+					<i :class="tab.icon"></i> {{ tab.name }}
+				</button>
 			</div>
 
-			<div class="card-body p-2">
+			<!-- 内容区域 -->
+			<div class="flex-1 overflow-y-auto bg-gray-50/50 p-4">
 				<!-- 附近 -->
-				<div v-if="activeTab==='place'">
-								<div class="row g-2 align-items-end mb-2">
-									<div class="col-6">
-										<label class="form-label">纬度</label>
-										<input v-model.number="place.lat" type="number" step="0.0001" class="form-control form-control-sm" />
-									</div>
-									<div class="col-6">
-										<label class="form-label">经度</label>
-										<input v-model.number="place.lon" type="number" step="0.0001" class="form-control form-control-sm" />
-									</div>
-									<div class="col-6">
-							<label class="form-label">半径(km)</label>
-							<input v-model.number="place.radius" type="number" min="1" max="50" class="form-control form-control-sm" />
+				<div v-if="activeTab==='place'" class="space-y-4">
+					<div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 space-y-3">
+						<div class="grid grid-cols-2 gap-3">
+							<div>
+								<label class="block text-xs font-medium text-gray-500 mb-1">纬度</label>
+								<input v-model.number="place.lat" type="number" step="0.0001" class="w-full rounded-lg border-gray-200 text-sm focus:ring-brand-500 focus:border-brand-500" />
+							</div>
+							<div>
+								<label class="block text-xs font-medium text-gray-500 mb-1">经度</label>
+								<input v-model.number="place.lon" type="number" step="0.0001" class="w-full rounded-lg border-gray-200 text-sm focus:ring-brand-500 focus:border-brand-500" />
+							</div>
 						</div>
-						<div class="col-6">
-							<label class="form-label">类别</label>
-							<select v-model="place.category" class="form-select form-select-sm">
-								<option value="">全部</option>
-								<option v-for="c in place.categories" :key="c" :value="c">{{ c }}</option>
-							</select>
+						<div class="grid grid-cols-2 gap-3">
+							<div>
+								<label class="block text-xs font-medium text-gray-500 mb-1">半径(km)</label>
+								<input v-model.number="place.radius" type="number" min="1" max="50" class="w-full rounded-lg border-gray-200 text-sm focus:ring-brand-500 focus:border-brand-500" />
+							</div>
+							<div>
+								<label class="block text-xs font-medium text-gray-500 mb-1">类别</label>
+								<select v-model="place.category" class="w-full rounded-lg border-gray-200 text-sm focus:ring-brand-500 focus:border-brand-500">
+									<option value="">全部</option>
+									<option v-for="c in place.categories" :key="c" :value="c">{{ c }}</option>
+								</select>
+							</div>
 						</div>
-						<div class="col-12 d-grid gap-2 d-flex">
-							<button class="btn btn-primary btn-sm" @click="loadNearby"><span v-if="place.loading" class="spinner-border spinner-border-sm me-1"></span>查询附近</button>
-							<button class="btn btn-outline-secondary btn-sm" @click="locate">定位</button>
-										<button class="btn btn-outline-secondary btn-sm" @click="syncMapCenter">取地图中心</button>
+						<div class="flex gap-2 pt-2">
+							<button class="flex-1 bg-brand-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-brand-700 transition-colors flex items-center justify-center gap-2" @click="loadNearby">
+								<span v-if="place.loading" class="spinner-border spinner-border-sm w-3 h-3"></span>
+								<i class="bi bi-search"></i> 查询附近
+							</button>
+							<button class="px-3 py-2 border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50" @click="locate" title="定位"><i class="bi bi-geo-alt"></i></button>
+							<button class="px-3 py-2 border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50" @click="syncMapCenter" title="取地图中心"><i class="bi bi-crosshair"></i></button>
 						</div>
 					</div>
-					<div class="list-group list-scroll">
-						<button v-for="p in place.list" :key="p.id || p.attraction_id || p.name" type="button"
-							class="list-group-item list-group-item-action py-2"
-							:class="{ active: selectedId === (p.id || p.attraction_id) }"
+
+					<div class="space-y-2">
+						<div v-if="!place.loading && place.list.length===0" class="text-center py-8 text-gray-400">
+							<i class="bi bi-inbox text-4xl mb-2 block"></i>
+							<p class="text-sm">暂无数据</p>
+						</div>
+						<button v-for="p in place.list" :key="p.id || p.attraction_id || p.name" 
+							class="w-full text-left bg-white p-3 rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all group"
+							:class="{ 'ring-2 ring-brand-500 border-transparent': selectedId === (p.id || p.attraction_id) }"
 							@click="focusPlace(p)">
-							<div class="d-flex w-100 justify-content-between">
-								<small class="fw-bold">{{ p.name }}</small>
-								<small v-if="p.distance_km !== undefined" class="text-muted">{{ p.distance_km }} km</small>
+							<div class="flex justify-between items-start mb-1">
+								<h4 class="font-bold text-gray-800 group-hover:text-brand-600 transition-colors">{{ p.name }}</h4>
+								<span v-if="p.distance_km !== undefined" class="text-xs font-medium text-brand-600 bg-brand-50 px-2 py-0.5 rounded-full">{{ p.distance_km }} km</span>
 							</div>
-							<small class="text-muted">{{ p.category || p.type || '-' }}</small>
+							<div class="text-xs text-gray-500 flex items-center gap-2">
+								<span class="bg-gray-100 px-2 py-0.5 rounded">{{ p.category || p.type || '未知' }}</span>
+							</div>
 						</button>
-						<div v-if="!place.loading && place.list.length===0" class="text-muted p-2">暂无数据</div>
 					</div>
 				</div>
 
 				<!-- 推荐 -->
-				<div v-else-if="activeTab==='recommend'">
-					<div class="input-group input-group-sm mb-2">
-						<input v-model.trim="recommend.query" type="text" class="form-control" placeholder="搜索关键词" @keyup.enter="refreshRecommend" />
-						<button class="btn btn-outline-primary" @click="refreshRecommend">搜索/推荐</button>
-					</div>
-					<div class="row g-2 align-items-end mb-2">
-						<div class="col-4">
-							<label class="form-label">算法</label>
-							<select v-model="recommend.prefs.algorithm" class="form-select form-select-sm">
-								<option value="content_based">内容</option>
-								<option value="collaborative">协同</option>
+				<div v-else-if="activeTab==='recommend'" class="space-y-4">
+					<div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 space-y-3">
+						<div class="relative">
+							<input v-model.trim="recommend.query" type="text" class="w-full pl-9 pr-4 py-2 rounded-lg border-gray-200 text-sm focus:ring-brand-500 focus:border-brand-500" placeholder="搜索关键词..." @keyup.enter="refreshRecommend" />
+							<i class="bi bi-search absolute left-3 top-2.5 text-gray-400"></i>
+						</div>
+						
+						<div class="grid grid-cols-3 gap-2">
+							<select v-model="recommend.prefs.algorithm" class="rounded-lg border-gray-200 text-xs focus:ring-brand-500 focus:border-brand-500 py-1.5">
+								<option value="content_based">内容推荐</option>
+								<option value="collaborative">协同过滤</option>
 							</select>
-						</div>
-						<div class="col-4">
-							<label class="form-label">排序</label>
-							<select v-model="recommend.prefs.sort_by" class="form-select form-select-sm">
-								<option value="score">综合</option>
-								<option value="popularity">热度</option>
-								<option value="rating">评分</option>
+							<select v-model="recommend.prefs.sort_by" class="rounded-lg border-gray-200 text-xs focus:ring-brand-500 focus:border-brand-500 py-1.5">
+								<option value="score">综合排序</option>
+								<option value="popularity">热度优先</option>
+								<option value="rating">评分优先</option>
 							</select>
+							<input v-model.number="recommend.prefs.top_n" type="number" min="1" max="100" class="rounded-lg border-gray-200 text-xs focus:ring-brand-500 focus:border-brand-500 py-1.5" placeholder="Top N" />
 						</div>
-						<div class="col-4">
-							<label class="form-label">Top N</label>
-							<input v-model.number="recommend.prefs.top_n" type="number" min="1" max="1000" class="form-control form-control-sm" />
+
+						<div class="flex justify-between items-center pt-1">
+							<button class="text-xs text-brand-600 font-medium hover:text-brand-700 flex items-center gap-1" @click="recommend.showAdv = !recommend.showAdv">
+								{{ recommend.showAdv ? '收起筛选' : '更多筛选' }} <i class="bi" :class="recommend.showAdv ? 'bi-chevron-up' : 'bi-chevron-down'"></i>
+							</button>
+							<button class="bg-brand-600 text-white px-4 py-1.5 rounded-lg text-xs font-medium hover:bg-brand-700 transition-colors" @click="refreshRecommend">
+								应用筛选
+							</button>
 						</div>
-						<div class="col-12 d-flex gap-2">
-							<button class="btn btn-primary btn-sm" @click="refreshRecommend">应用</button>
-							<button class="btn btn-link btn-sm ms-auto" @click="recommend.showAdv = !recommend.showAdv">{{ recommend.showAdv ? '收起' : '更多' }}</button>
-						</div>
-					</div>
-					<div v-if="recommend.showAdv" class="mb-2">
-						<div class="small text-muted mb-1">类别（可选）</div>
-						<div class="d-flex flex-wrap gap-2 small">
-							<label class="form-check-label" v-for="c in recommend.categories" :key="c">
-								<input class="form-check-input me-1" type="checkbox" :value="c" v-model="recommend.prefs.categories" /> {{ c }}
-							</label>
-						</div>
-					</div>
-					<div class="list-group list-scroll">
-						<button v-for="r in recommend.list" :key="getId(r)" type="button"
-							class="list-group-item list-group-item-action py-2"
-							:class="{ active: selectedId === getId(r) }"
-							@click="focusRecommend(r)">
-							<div class="d-flex justify-content-between">
-								<small class="fw-bold">{{ r.name }}</small>
-								<small class="text-muted" v-if="r.rating">评分 {{ r.rating }}</small>
-								<small class="text-muted" v-else-if="r.popularity">热度 {{ r.popularity }}</small>
+
+						<div v-if="recommend.showAdv" class="pt-2 border-t border-gray-100">
+							<div class="text-xs text-gray-500 mb-2">类别筛选</div>
+							<div class="flex flex-wrap gap-2">
+								<label class="inline-flex items-center px-2 py-1 rounded-md bg-gray-50 border border-gray-200 cursor-pointer hover:bg-gray-100" v-for="c in recommend.categories" :key="c">
+									<input class="form-checkbox h-3 w-3 text-brand-600 rounded border-gray-300 focus:ring-brand-500" type="checkbox" :value="c" v-model="recommend.prefs.categories" /> 
+									<span class="ml-1.5 text-xs text-gray-700">{{ c }}</span>
+								</label>
 							</div>
-							<small class="text-muted">{{ r.type || r.category || '-' }}</small>
+						</div>
+					</div>
+
+					<div class="space-y-2">
+						<div v-if="!recommend.loading && recommend.list.length===0" class="text-center py-8 text-gray-400">
+							<i class="bi bi-inbox text-4xl mb-2 block"></i>
+							<p class="text-sm">暂无推荐数据</p>
+						</div>
+						<button v-for="r in recommend.list" :key="getId(r)" 
+							class="w-full text-left bg-white p-3 rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all group"
+							:class="{ 'ring-2 ring-brand-500 border-transparent': selectedId === getId(r) }"
+							@click="focusRecommend(r)">
+							<div class="flex justify-between items-start mb-1">
+								<h4 class="font-bold text-gray-800 group-hover:text-brand-600 transition-colors">{{ r.name }}</h4>
+								<div class="flex items-center gap-1">
+									<span v-if="r.rating" class="flex items-center gap-1 text-xs font-bold text-yellow-600 bg-yellow-50 px-1.5 py-0.5 rounded">
+										<i class="bi bi-star-fill text-[10px]"></i> {{ r.rating }}
+									</span>
+									<span v-else-if="r.popularity" class="flex items-center gap-1 text-xs font-bold text-red-600 bg-red-50 px-1.5 py-0.5 rounded">
+										<i class="bi bi-fire text-[10px]"></i> {{ r.popularity }}
+									</span>
+								</div>
+							</div>
+							<div class="text-xs text-gray-500">
+								<span class="bg-gray-100 px-2 py-0.5 rounded">{{ r.type || r.category || '未知' }}</span>
+							</div>
 						</button>
-						<div v-if="!recommend.loading && recommend.list.length===0" class="text-muted p-2">暂无数据</div>
 					</div>
 				</div>
 
 				<!-- 路径规划 -->
-				<div v-else-if="activeTab==='route'">
-					<div class="d-flex gap-2 mb-2 flex-wrap">
-						<button class="btn btn-sm" :class="routeMode ? 'btn-danger' : 'btn-primary'" @click="toggleRouteMode">{{ routeMode ? '停止添加点' : '开始添加点' }}</button>
-						<button class="btn btn-sm btn-outline-secondary" @click="undoRoute" :disabled="routeMarkers.length===0">撤销</button>
-						<button class="btn btn-sm btn-outline-secondary" @click="reverseRoute" :disabled="routeMarkers.length<2">反转</button>
-						<button class="btn btn-sm btn-outline-secondary" @click="clearRoute" :disabled="routeMarkers.length===0">清空</button>
-						<button class="btn btn-sm btn-outline-primary" @click="planSimpleRoute" :disabled="routeMarkers.length<2 || planning">
-							<span v-if="planning" class="spinner-border spinner-border-sm me-1"></span>计算
+				<div v-else-if="activeTab==='route'" class="space-y-4">
+					<div class="bg-gradient-to-r from-brand-600 via-brand-500 to-brand-400 text-white rounded-2xl p-5 shadow-lg">
+						<div class="flex flex-col gap-2">
+							<p class="text-sm text-white/80">智能行程概览</p>
+							<div class="flex flex-wrap gap-6 items-center">
+								<div>
+									<p class="text-[13px] text-white/70">已选站点</p>
+									<p class="text-3xl font-semibold">{{ routeStats.points }}</p>
+								</div>
+								<div>
+									<p class="text-[13px] text-white/70">连接段数</p>
+									<p class="text-3xl font-semibold">{{ routeStats.segments }}</p>
+								</div>
+								<div>
+									<p class="text-[13px] text-white/70">估算距离</p>
+									<p class="text-3xl font-semibold">{{ routeStats.distanceText }}</p>
+								</div>
+							</div>
+							<p class="text-xs text-white/80">提示：点击地图即可添加站点，建议不少于两个坐标点以获取完整线路。</p>
+						</div>
+					</div>
+
+					<div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
+						<div class="flex flex-col gap-1">
+							<h4 class="text-base font-semibold text-gray-900">搜索或添加地点</h4>
+							<p class="text-sm text-gray-500">输入任意地点名称即可从开放地图检索，或开启“地图选点”直接点击地图。</p>
+						</div>
+						<div class="flex flex-col gap-2 sm:flex-row">
+							<div class="relative flex-1">
+								<i class="bi bi-search absolute left-3 top-2.5 text-gray-400"></i>
+								<input v-model.trim="routeSearch.query" @keyup.enter="searchRoutePlaces" type="text" class="w-full pl-9 pr-4 py-2 rounded-lg border-gray-200 text-sm focus:ring-brand-500 focus:border-brand-500" placeholder="例如：杭州西湖 / 成都火车站" />
+							</div>
+							<button class="px-4 py-2.5 rounded-lg text-sm font-semibold text-white bg-brand-600 hover:bg-brand-700 transition disabled:opacity-60" :disabled="routeSearch.loading || !routeSearch.query" @click="searchRoutePlaces">
+								<span v-if="routeSearch.loading" class="inline-flex items-center gap-2"><span class="animate-spin w-4 h-4 border-2 border-white/50 border-t-transparent rounded-full"></span> 搜索中</span>
+								<span v-else>开始搜索</span>
+							</button>
+						</div>
+						<p class="text-xs text-gray-400">提示：可以通过“预览”定位到地图，再点击“加入路线”将该点放入路径列表。</p>
+						<div v-if="routeSearch.error" class="text-xs text-rose-600 bg-rose-50 border border-rose-100 px-3 py-2 rounded-lg">{{ routeSearch.error }}</div>
+						<div v-if="routeSearch.loading" class="text-sm text-gray-500 flex items-center gap-2">
+							<span class="animate-spin w-4 h-4 border-2 border-gray-200 border-t-transparent rounded-full"></span>
+							从开放地图检索地点中...
+						</div>
+						<div v-else class="space-y-2">
+							<div v-if="routeSearch.results.length === 0" class="text-xs text-gray-400">
+								<span v-if="routeSearch.query">暂无匹配结果，换个关键词试试。</span>
+								<span v-else>输入城市、景点、地址等关键词来查找候选点。</span>
+							</div>
+							<div v-else>
+								<div v-for="place in routeSearch.results" :key="place.id" class="flex flex-col gap-2 p-3 rounded-xl border border-gray-100 bg-gray-50/60">
+									<div>
+										<p class="text-sm font-semibold text-gray-900">{{ place.title }}</p>
+										<p class="text-xs text-gray-500 line-clamp-2">{{ place.subtitle }}</p>
+									</div>
+									<div class="flex flex-wrap gap-2 text-xs">
+										<button class="px-3 py-1.5 rounded-full border border-gray-200 text-gray-600 hover:bg-white" @click="focusRouteCandidate(place)">
+											<i class="bi bi-geo"></i> 预览
+										</button>
+										<button class="px-3 py-1.5 rounded-full bg-brand-600 text-white font-medium hover:bg-brand-700" @click="addRoutePointFromSearch(place)">
+											<i class="bi bi-plus-circle"></i> 加入路线
+										</button>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
+						<div class="flex flex-col gap-1">
+							<h4 class="text-base font-semibold text-gray-900">标记路线</h4>
+							<p class="text-sm text-gray-500">在左侧地图选择旅程关键节点，也可以手动撤销、反转或清空。</p>
+						</div>
+						<div class="flex flex-wrap gap-2">
+							<button class="flex-1 min-w-[180px] py-2.5 rounded-xl text-sm font-semibold transition-colors flex items-center justify-center gap-2"
+								:class="routeMode ? 'bg-rose-50 text-rose-600 border border-rose-200 hover:bg-rose-100' : 'bg-brand-600 text-white hover:bg-brand-700'"
+								@click="toggleRouteMode">
+								<i class="bi" :class="routeMode ? 'bi-stop-circle' : 'bi-geo-alt'"></i>
+								{{ routeMode ? '停止添加点' : '开始在地图选点' }}
+							</button>
+							<button class="px-3 py-2 rounded-xl border border-gray-200 text-xs font-semibold text-gray-600 hover:bg-gray-50 disabled:opacity-50" @click="undoRoute" :disabled="routeMarkers.length===0">撤销</button>
+							<button class="px-3 py-2 rounded-xl border border-gray-200 text-xs font-semibold text-gray-600 hover:bg-gray-50 disabled:opacity-50" @click="reverseRoute" :disabled="routeMarkers.length<2">反向</button>
+							<button class="px-3 py-2 rounded-xl border border-gray-200 text-xs font-semibold text-gray-600 hover:bg-gray-50 disabled:opacity-50" @click="clearRoute" :disabled="routeMarkers.length===0">清空</button>
+						</div>
+						<button class="w-full bg-brand-50 text-brand-700 border border-brand-200 py-2.5 rounded-xl text-sm font-semibold hover:bg-brand-100 transition flex items-center justify-center gap-2 disabled:opacity-50" 
+							@click="planSimpleRoute" :disabled="routeMarkers.length<2 || planning">
+							<span v-if="planning" class="inline-flex items-center gap-2"><span class="animate-spin w-4 h-4 border-2 border-brand-200 border-t-transparent rounded-full"></span>规划中</span>
+							<span v-else><i class="bi bi-sign-turn-right"></i> 计算路线</span>
 						</button>
 					</div>
-					<ol class="small mb-2 ps-3">
-						<li v-for="(p,i) in routeMarkers" :key="i">{{ p.latitude }}, {{ p.longitude }}</li>
-					</ol>
-					<div v-if="routeInfo" class="alert alert-info py-2 small">估算距离：{{ routeInfo.distance_km }} km</div>
+
+					<div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
+						<div class="bg-white rounded-2xl border border-gray-100 shadow-sm">
+							<div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+								<h4 class="text-base font-semibold text-gray-900">路线时间线</h4>
+								<span class="text-xs text-gray-400">{{ routeMarkers.length }} 个站点</span>
+							</div>
+							<div v-if="routeMarkers.length" class="px-5 py-4 space-y-4">
+								<div v-for="(p, i) in routeMarkers" :key="i" class="flex gap-4">
+									<div class="flex flex-col items-center">
+										<span class="w-8 h-8 rounded-full bg-brand-100 text-brand-600 font-semibold text-sm flex items-center justify-center">{{ i + 1 }}</span>
+										<div v-if="i < routeMarkers.length - 1" class="flex-1 w-px bg-gray-100 mt-1"></div>
+									</div>
+									<div class="flex-1">
+										<p class="text-sm font-semibold text-gray-900 flex items-center gap-2">
+											{{ p.label || (`坐标 ${p.latitude.toFixed(4)}, ${p.longitude.toFixed(4)}`) }}
+											<span v-if="p.source" class="text-[11px] font-medium px-2 py-0.5 rounded-full" :class="p.source === 'search' ? 'bg-brand-50 text-brand-600' : 'bg-gray-100 text-gray-500'">{{ p.source === 'search' ? '搜索' : '地图' }}</span>
+										</p>
+										<p class="text-xs text-gray-500 mt-1">坐标 {{ p.latitude.toFixed(4) }}, {{ p.longitude.toFixed(4) }}</p>
+										<p v-if="p.meta?.subtitle" class="text-[11px] text-gray-400 mt-1 line-clamp-2">{{ p.meta.subtitle }}</p>
+									</div>
+								</div>
+							</div>
+							<div v-else class="px-5 py-10 text-center text-gray-400 text-sm">
+								<i class="bi bi-map text-3xl mb-2 block"></i>
+								还没有路线点，先在地图上点选吧
+							</div>
+						</div>
+
+						<div class="space-y-4">
+							<div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
+								<div class="flex items-center justify-between">
+									<h4 class="text-base font-semibold text-gray-900">路线分析</h4>
+									<span class="text-xs text-gray-400">快速评估</span>
+								</div>
+								<div class="grid grid-cols-3 gap-3 text-center">
+									<div class="rounded-xl bg-gray-50 py-3">
+										<p class="text-[11px] text-gray-500">站点</p>
+										<p class="text-xl font-semibold text-gray-900">{{ routeStats.points }}</p>
+									</div>
+									<div class="rounded-xl bg-gray-50 py-3">
+										<p class="text-[11px] text-gray-500">连接段</p>
+										<p class="text-xl font-semibold text-gray-900">{{ routeStats.segments }}</p>
+									</div>
+									<div class="rounded-xl bg-gray-50 py-3">
+										<p class="text-[11px] text-gray-500">距离 (km)</p>
+										<p class="text-xl font-semibold text-gray-900">{{ routeStats.distanceLabel }}</p>
+									</div>
+								</div>
+								<p class="text-sm text-gray-500" v-if="routeInfo">系统根据起止点返回的简易里程估算，后续可接入更精确的 OSRM/高德路线。</p>
+								<p class="text-sm text-gray-400" v-else>计算路线后，将在这里展示距离等关键信息。</p>
+							</div>
+							<div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+								<h4 class="text-base font-semibold text-gray-900 mb-3">行程建议</h4>
+								<ul class="space-y-2 text-sm text-gray-500">
+									<li class="flex items-start gap-2"><i class="bi bi-check-circle-fill text-brand-500 mt-0.5"></i> 勾画不少于 3 个 waypoint，可生成更稳定的行程节奏。</li>
+									<li class="flex items-start gap-2"><i class="bi bi-check-circle-fill text-brand-500 mt-0.5"></i> 通过“反向”快速调整出发/抵达次序，便于多城市串联。</li>
+									<li class="flex items-start gap-2"><i class="bi bi-check-circle-fill text-brand-500 mt-0.5"></i> 结合日记坐标，可一键回顾曾经路线并纳入新的旅程。</li>
+								</ul>
+							</div>
+						</div>
+					</div>
 				</div>
 
 				<!-- 日记 -->
-				<div v-else-if="activeTab==='diary'">
-					<div class="mb-2">
-						<label class="form-label">标题</label>
-						<input v-model.trim="diary.form.title" type="text" class="form-control form-control-sm" placeholder="请输入标题" />
-					</div>
-					<div class="mb-2">
-						<label class="form-label">内容</label>
-						<textarea v-model.trim="diary.form.content" rows="4" class="form-control form-control-sm" placeholder="记录你的旅途…"></textarea>
-					</div>
-					<div class="row g-2 mb-2">
-						<div class="col-6">
-							<label class="form-label">纬度</label>
-							<input v-model.number="diary.form.latitude" type="number" step="0.000001" class="form-control form-control-sm" />
+				<div v-else-if="activeTab==='diary'" class="space-y-4">
+					<div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 space-y-3">
+						<div>
+							<label class="block text-xs font-medium text-gray-500 mb-1">标题</label>
+							<input v-model.trim="diary.form.title" type="text" class="w-full rounded-lg border-gray-200 text-sm focus:ring-brand-500 focus:border-brand-500" placeholder="给日记起个标题..." />
 						</div>
-						<div class="col-6">
-							<label class="form-label">经度</label>
-							<input v-model.number="diary.form.longitude" type="number" step="0.000001" class="form-control form-control-sm" />
+						<div>
+							<label class="block text-xs font-medium text-gray-500 mb-1">内容</label>
+							<textarea v-model.trim="diary.form.content" rows="3" class="w-full rounded-lg border-gray-200 text-sm focus:ring-brand-500 focus:border-brand-500 resize-none" placeholder="记录此刻的心情与见闻..."></textarea>
+						</div>
+						<div class="grid grid-cols-2 gap-3">
+							<div>
+								<label class="block text-xs font-medium text-gray-500 mb-1">纬度</label>
+								<input v-model.number="diary.form.latitude" type="number" step="0.000001" class="w-full rounded-lg border-gray-200 text-xs bg-gray-50" readonly />
+							</div>
+							<div>
+								<label class="block text-xs font-medium text-gray-500 mb-1">经度</label>
+								<input v-model.number="diary.form.longitude" type="number" step="0.000001" class="w-full rounded-lg border-gray-200 text-xs bg-gray-50" readonly />
+							</div>
+						</div>
+						<div class="flex gap-2 pt-1">
+							<button class="px-3 py-1.5 border border-gray-200 rounded-lg text-xs text-gray-600 hover:bg-gray-50" @click="locate">
+								<i class="bi bi-geo-alt"></i> 获取位置
+							</button>
+							<button class="flex-1 bg-brand-600 text-white py-1.5 rounded-lg text-xs font-medium hover:bg-brand-700 transition-colors flex items-center justify-center gap-2" :disabled="diary.submitting" @click="submitDiary">
+								<span v-if="diary.submitting" class="spinner-border spinner-border-sm w-3 h-3"></span>
+								<i class="bi bi-send"></i> 发布日记
+							</button>
 						</div>
 					</div>
-					<div class="d-flex gap-2 mb-2">
-						<button class="btn btn-sm btn-outline-secondary" @click="locate">使用当前位置</button>
-						<button class="btn btn-sm btn-primary ms-auto" :disabled="diary.submitting" @click="submitDiary">
-							<span v-if="diary.submitting" class="spinner-border spinner-border-sm me-1"></span>提交
-						</button>
-					</div>
-					<div class="list-group list-scroll">
-						<button v-for="d in diary.list" :key="d.id" type="button"
-							class="list-group-item list-group-item-action py-2"
-							:class="{ active: selectedId === d.id }" @click="selectDiary(d)">
-							<div class="d-flex justify-content-between"><small class="fw-bold">{{ d.title }}</small><small class="text-muted">{{ d.date }}</small></div>
-							<small class="text-muted ellipsis-1">{{ d.snippet || d.content }}</small>
+
+					<div class="space-y-2">
+						<div v-if="diary.list.length===0" class="text-center py-8 text-gray-400">
+							<i class="bi bi-journal-album text-4xl mb-2 block"></i>
+							<p class="text-sm">暂无日记，开始记录吧！</p>
+						</div>
+						<button v-for="d in diary.list" :key="d.id" 
+							class="w-full text-left bg-white p-3 rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all group"
+							:class="{ 'ring-2 ring-brand-500 border-transparent': selectedId === d.id }"
+							@click="selectDiary(d)">
+							<div class="flex justify-between items-start mb-1">
+								<h4 class="font-bold text-gray-800 group-hover:text-brand-600 transition-colors line-clamp-1">{{ d.title }}</h4>
+								<span class="text-[10px] text-gray-400 whitespace-nowrap">{{ d.date }}</span>
+							</div>
+							<p class="text-xs text-gray-500 line-clamp-2">{{ d.snippet || d.content }}</p>
 						</button>
 					</div>
 				</div>
 			</div>
 		</div>
 
-		<!-- 右上角快捷按钮 -->
-		<div class="home-actions">
-			<button class="btn btn-sm btn-outline-primary" @click="locate">定位</button>
-			<button class="btn btn-sm btn-outline-secondary ms-2" @click="goLogin">登录</button>
+		<!-- 地图区域 -->
+		<div class="flex-1 h-full relative z-0">
+			<BaseMap
+				ref="baseMap"
+				:center="mapCenter"
+				:zoom="11"
+				:full-screen="true"
+				:offset-top="0"
+				:markers="markers"
+				:selected-id="selectedId"
+				:route-mode="activeTab === 'route' && routeMode"
+				:route-markers="routeMarkers"
+				@marker-click="onMarkerClick"
+				@location-update="onLocationUpdate"
+				@route-point-add="onRoutePointAdd"
+				@map-click="onMapClick"
+			/>
+			
+			<!-- 地图上的浮动按钮 -->
+			<div class="absolute top-4 right-4 flex flex-col gap-2 z-[400]">
+				<button class="bg-white p-2 rounded-lg shadow-md text-gray-600 hover:text-brand-600 hover:bg-gray-50 transition-colors" @click="locate" title="定位">
+					<i class="bi bi-crosshair text-xl"></i>
+				</button>
+				<button class="bg-white p-2 rounded-lg shadow-md text-gray-600 hover:text-brand-600 hover:bg-gray-50 transition-colors" @click="goLogin" title="登录" v-if="!isLoggedIn">
+					<i class="bi bi-box-arrow-in-right text-xl"></i>
+				</button>
+			</div>
 		</div>
 	</div>
 </template>
@@ -194,17 +384,21 @@ import { fetchNearbyPlaces, fetchCategories } from '../api/place'
 import { fetchRecommendations, searchRecommendations } from '../api/recommendation'
 import { planSimple } from '../api/route'
 import { fetchDiaries, fetchDiaryDetail, createDiary } from '../api/diary'
+import { searchPlaces } from '../api/geocode'
 
 export default {
 	name: 'Home',
 	components: { BaseMap },
 	data() {
 		return {
-			navbarHeight: 56,
+			tabs: [
+				{ id: 'place', name: '附近', icon: 'bi-geo-alt' },
+				{ id: 'recommend', name: '推荐', icon: 'bi-stars' },
+				{ id: 'route', name: '路径', icon: 'bi-sign-turn-right' },
+				{ id: 'diary', name: '日记', icon: 'bi-journal-text' }
+			],
 			activeTab: 'place',
 			mapCenter: [39.9042, 116.4074],
-				panelPos: { top: 64, left: 12 },
-				dragging: { active: false, startX: 0, startY: 0, baseTop: 64, baseLeft: 12 },
 			selectedId: null,
 			// 路径
 			routeMode: false,
@@ -216,7 +410,9 @@ export default {
 			// 推荐
 			recommend: { query: '', list: [], loading: false, showAdv: false, categories: ['历史景点','自然风光','景点','美食','自然','历史'], prefs: { algorithm: 'content_based', sort_by: 'score', top_n: 100, categories: [] } },
 			// 日记
-			diary: { list: [], selected: null, submitting: false, form: { title: '', content: '', latitude: null, longitude: null } }
+			diary: { list: [], selected: null, submitting: false, form: { title: '', content: '', latitude: null, longitude: null } },
+			// 路径搜索
+			routeSearch: { query: '', loading: false, results: [], error: null }
 		}
 	},
 	computed: {
@@ -229,11 +425,31 @@ export default {
 				return (this.recommend.list || []).filter(r => typeof r.latitude==='number' && typeof r.longitude==='number')
 					.map(r => ({ id: this.getId(r), name: r.name, latitude: r.latitude, longitude: r.longitude, popup: r.name }))
 			}
+			if (this.activeTab === 'route') {
+				return (this.routeMarkers || []).filter(p => typeof p.latitude==='number' && typeof p.longitude==='number')
+					.map((p, idx) => ({
+						id: `route-${idx + 1}`,
+						name: p.label || `路线点 ${idx + 1}`,
+						latitude: p.latitude,
+						longitude: p.longitude,
+						popup: `${p.label || '路线点'} · ${p.latitude.toFixed(4)}, ${p.longitude.toFixed(4)}`
+					}))
+			}
 			if (this.activeTab === 'diary') {
 				return (this.diary.list || []).filter(d => typeof d.latitude==='number' && typeof d.longitude==='number')
 					.map(d => ({ id: d.id, name: d.title, latitude: d.latitude, longitude: d.longitude, popup: `${d.title} · ${d.date||''}` }))
 			}
 			return []
+		}
+	,
+		routeStats() {
+			const points = this.routeMarkers.length
+			const segments = Math.max(points - 1, 0)
+			const rawDistance = this.routeInfo?.distance_km
+			const distanceValue = typeof rawDistance === 'number' ? rawDistance : parseFloat(rawDistance)
+			const distanceLabel = Number.isFinite(distanceValue) && distanceValue > 0 ? distanceValue.toFixed(1) : '--'
+			const distanceText = distanceLabel === '--' ? '--' : `${distanceLabel} km`
+			return { points, segments, distanceValue, distanceLabel, distanceText }
 		}
 	},
 	async mounted() {
@@ -247,29 +463,6 @@ export default {
 		goLogin() {
 			try { this.$router.push('/login') } catch (e) {}
 		},
-			// 面板拖动
-			onDragStart(e) {
-				this.dragging.active = true
-				this.dragging.startX = e.clientX
-				this.dragging.startY = e.clientY
-				this.dragging.baseTop = this.panelPos.top
-				this.dragging.baseLeft = this.panelPos.left
-				window.addEventListener('mousemove', this.onDragging)
-				window.addEventListener('mouseup', this.onDragEnd)
-			},
-			onDragging(e) {
-				if (!this.dragging.active) return
-				const dx = e.clientX - this.dragging.startX
-				const dy = e.clientY - this.dragging.startY
-				const top = Math.max(8, Math.min(window.innerHeight - 120, this.dragging.baseTop + dy))
-				const left = Math.max(8, Math.min(window.innerWidth - 360, this.dragging.baseLeft + dx))
-				this.panelPos = { top, left }
-			},
-			onDragEnd() {
-				this.dragging.active = false
-				window.removeEventListener('mousemove', this.onDragging)
-				window.removeEventListener('mouseup', this.onDragEnd)
-			},
 		switchTab(tab) { this.activeTab = tab },
 		locate() { this.$refs.baseMap?.locateUser?.(false) },
 		onLocationUpdate(pos) {
@@ -355,7 +548,62 @@ export default {
 		},
 		// 来自 BaseMap 的事件
 		// route-point-add
-		onRoutePointAdd(p) { this.routeMarkers = [...this.routeMarkers, p] },
+		onRoutePointAdd(p) { this.addRouteMarker(p) },
+		onMapClick(pos) {
+			if (this.activeTab !== 'route' || !this.routeMode || !pos) return
+			this.addRouteMarker({
+				latitude: pos.latitude,
+				longitude: pos.longitude,
+				label: `自选点 ${this.routeMarkers.length + 1}`,
+				source: 'map'
+			})
+		},
+		addRoutePointFromSearch(place) {
+			if (!place || typeof place.latitude !== 'number' || typeof place.longitude !== 'number') return
+			this.addRouteMarker({
+				latitude: place.latitude,
+				longitude: place.longitude,
+				label: place.title,
+				source: 'search',
+				meta: { subtitle: place.subtitle }
+			})
+		},
+		focusRouteCandidate(place) {
+			if (!place || typeof place.latitude !== 'number' || typeof place.longitude !== 'number') return
+			this.mapCenter = [place.latitude, place.longitude]
+		},
+		addRouteMarker(point) {
+			if (!point || typeof point.latitude !== 'number' || typeof point.longitude !== 'number') return
+			const label = point.label?.trim() || `路线点 ${this.routeMarkers.length + 1}`
+			const marker = {
+				latitude: point.latitude,
+				longitude: point.longitude,
+				label,
+				source: point.source || 'map',
+				meta: point.meta || null
+			}
+			this.routeMarkers = [...this.routeMarkers, marker]
+			this.mapCenter = [marker.latitude, marker.longitude]
+		},
+		async searchRoutePlaces() {
+			const keyword = (this.routeSearch.query || '').trim()
+			if (!keyword) {
+				this.routeSearch.results = []
+				this.routeSearch.error = null
+				return
+			}
+			this.routeSearch.loading = true
+			this.routeSearch.error = null
+			try {
+				const results = await searchPlaces(keyword, { limit: 8 })
+				this.routeSearch.results = results
+			} catch (e) {
+				this.routeSearch.results = []
+				this.routeSearch.error = '地点搜索失败，请稍后重试。'
+			} finally {
+				this.routeSearch.loading = false
+			}
+		},
 		// --- 日记 ---
 		async loadDiaries() {
 			try {
@@ -394,19 +642,3 @@ export default {
 	}
 }
 </script>
-
-<style scoped>
-.home-panel {
-	position: fixed;
-	top: 64px;
-	left: 12px;
-	width: 340px;
-	max-height: calc(100vh - 80px);
-	overflow: hidden;
-	z-index: 1020;
-}
-.home-panel .card-body { overflow: auto; max-height: calc(100vh - 140px); }
-.list-scroll { max-height: 56vh; overflow: auto; }
-.ellipsis-1 { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
-.home-actions { position: fixed; top: 64px; right: 12px; z-index: 1020; display: flex; gap: 8px; }
-</style>

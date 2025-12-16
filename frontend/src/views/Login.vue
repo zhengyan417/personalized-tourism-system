@@ -1,36 +1,70 @@
 <template>
-  <div class="container py-4" style="max-width: 480px;">
-    <h3 class="mb-3">登录 / 注册</h3>
-    <div class="card mb-3">
-      <div class="card-body">
-        <div class="mb-3">
-          <label class="form-label">用户名</label>
-          <input v-model="form.username" type="text" class="form-control" placeholder="输入用户名">
+  <div class="min-h-[calc(100vh-64px)] flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-md w-full space-y-8 bg-white p-8 rounded-2xl shadow-lg border border-gray-100">
+      <div>
+        <div class="mx-auto h-12 w-12 bg-brand-100 rounded-full flex items-center justify-center text-brand-600 text-2xl">
+          <i class="bi bi-person-fill"></i>
         </div>
-        <div class="mb-3">
-          <label class="form-label">密码</label>
-          <input v-model="form.password" type="password" class="form-control" placeholder="输入密码">
-        </div>
-        <div class="mb-3">
-          <label class="form-label">邮箱（注册可选）</label>
-          <input v-model="form.email" type="email" class="form-control" placeholder="example@domain.com">
-        </div>
-        <div class="d-flex gap-2">
-          <button class="btn btn-primary" @click="onLogin" :disabled="loading">登录</button>
-          <button class="btn btn-outline-secondary" @click="onRegister" :disabled="loading">注册</button>
-        </div>
-        <div v-if="message" class="mt-3 alert" :class="messageTypeClass">{{ message }}</div>
+        <h2 class="mt-6 text-center text-3xl font-extrabold text-gray-900">
+          {{ user ? '已登录' : '登录 / 注册' }}
+        </h2>
+        <p class="mt-2 text-center text-sm text-gray-600" v-if="!user">
+          欢迎回到简途旅行
+        </p>
       </div>
-    </div>
-    <div v-if="user" class="alert alert-success">
-      已登录：{{ user.username }}
-      <div class="mt-2 d-flex gap-2">
-        <router-link to="/profile" class="btn btn-sm btn-outline-primary">
-          <i class="bi bi-person-circle"></i> 个人资料
-        </router-link>
-        <button class="btn btn-sm btn-outline-secondary" @click="onLogout">
-          <i class="bi bi-box-arrow-right"></i> 退出
-        </button>
+
+      <div v-if="!user" class="mt-8 space-y-6">
+        <div class="rounded-md shadow-sm -space-y-px">
+          <div class="mb-4">
+            <label for="username" class="block text-sm font-medium text-gray-700 mb-1">用户名</label>
+            <input id="username" v-model="form.username" type="text" required class="appearance-none rounded-lg relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-brand-500 focus:border-brand-500 focus:z-10 sm:text-sm" placeholder="输入用户名">
+          </div>
+          <div class="mb-4">
+            <label for="password" class="block text-sm font-medium text-gray-700 mb-1">密码</label>
+            <input id="password" v-model="form.password" type="password" required class="appearance-none rounded-lg relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-brand-500 focus:border-brand-500 focus:z-10 sm:text-sm" placeholder="输入密码">
+          </div>
+          <div class="mb-4">
+            <label for="email" class="block text-sm font-medium text-gray-700 mb-1">邮箱 <span class="text-gray-400 font-normal">(注册可选)</span></label>
+            <input id="email" v-model="form.email" type="email" class="appearance-none rounded-lg relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-brand-500 focus:border-brand-500 focus:z-10 sm:text-sm" placeholder="example@domain.com">
+          </div>
+        </div>
+
+        <div class="flex gap-4">
+          <button @click="onLogin" :disabled="loading" class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-lg text-white bg-brand-600 hover:bg-brand-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-500 disabled:opacity-50 transition-colors">
+            <span class="absolute left-0 inset-y-0 flex items-center pl-3" v-if="loading">
+              <span class="spinner-border spinner-border-sm w-4 h-4 text-brand-200"></span>
+            </span>
+            登录
+          </button>
+          <button @click="onRegister" :disabled="loading" class="group relative w-full flex justify-center py-2 px-4 border border-gray-300 text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-500 disabled:opacity-50 transition-colors">
+            注册
+          </button>
+        </div>
+
+        <div v-if="message" class="rounded-md p-4" :class="messageType === 'error' ? 'bg-red-50 text-red-700' : 'bg-blue-50 text-blue-700'">
+          <div class="flex">
+            <div class="flex-shrink-0">
+              <i class="bi" :class="messageType === 'error' ? 'bi-x-circle-fill' : 'bi-check-circle-fill'"></i>
+            </div>
+            <div class="ml-3">
+              <p class="text-sm font-medium">{{ message }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div v-else class="text-center space-y-4">
+        <div class="bg-green-50 text-green-800 p-4 rounded-lg">
+          <p class="font-medium">当前登录用户：{{ user.username }}</p>
+        </div>
+        <div class="flex flex-col gap-3">
+          <router-link to="/profile" class="w-full flex justify-center items-center gap-2 py-2 px-4 border border-brand-600 text-sm font-medium rounded-lg text-brand-600 bg-white hover:bg-brand-50 transition-colors">
+            <i class="bi bi-person-circle"></i> 个人资料
+          </router-link>
+          <button @click="onLogout" class="w-full flex justify-center items-center gap-2 py-2 px-4 border border-gray-300 text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 transition-colors">
+            <i class="bi bi-box-arrow-right"></i> 退出登录
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -48,11 +82,6 @@ export default {
       message: '',
       messageType: 'info',
       user: null
-    }
-  },
-  computed: {
-    messageTypeClass() {
-      return this.messageType === 'error' ? 'alert-danger' : 'alert-info'
     }
   },
   mounted() {
@@ -125,6 +154,3 @@ export default {
   }
 }
 </script>
-
-<style scoped>
-</style>
