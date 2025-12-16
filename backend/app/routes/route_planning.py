@@ -4,16 +4,11 @@ from app.services import navigate_service  # 新增道路导航服务
 
 route_bp = Blueprint("routes", __name__)
 
-@route_bp.after_request
-def _cors_fix(resp):
-    """确保导航接口跨域响应包含常见头（有时某些代理环境下 CORS(app) 不生效）。"""
-    try:
-        resp.headers.setdefault('Access-Control-Allow-Origin', '*')
-        resp.headers.setdefault('Access-Control-Allow-Headers', 'Content-Type, Authorization')
-        resp.headers.setdefault('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-    except Exception:
-        pass
-    return resp
+# CORS 由全局 CORS(app) 统一处理，支持 credentials
+# @route_bp.after_request
+# def _cors_fix(resp):
+#     # 不再手动设置 CORS 头，避免与全局配置冲突
+#     return resp
 
 @route_bp.route('/_ping', methods=['GET'])
 def ping_routes():

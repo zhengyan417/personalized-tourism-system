@@ -79,7 +79,9 @@ export default {
       _pendingRoadRender: false,
       _pendingRoadLatLngs: null,
       _pendingRoadClear: false,
-      _fallbackAdded: false
+      _fallbackAdded: false,
+      _tileErrorLogged: false,
+      _isDestroying: false  // 新增：标记组件正在销毁
     }
   },
   computed: {
@@ -107,8 +109,11 @@ export default {
     this.$watch(
       () => this.center,
       (val) => {
-        if (this.map && Array.isArray(val) && val.length === 2) {
+        if (this._isDestroying || !this.map || !this._mapReady || !Array.isArray(val) || val.length !== 2) return
+        try {
           this.map.setView(val, this.map.getZoom(), { animate: this.canAnimate() })
+        } catch (e) {
+          console.warn('[BaseMap] setView 失败', e)
         }
       },
       { deep: true }
@@ -117,13 +122,19 @@ export default {
     this.$watch(
       () => this.zoom,
       (z) => {
-        if (this.map && typeof z === 'number') this.map.setZoom(z, { animate: this.canAnimate() })
+        if (this._isDestroying || !this.map || !this._mapReady || typeof z !== 'number') return
+        try {
+          this.map.setZoom(z, { animate: this.canAnimate() })
+        } catch (e) {
+          console.warn('[BaseMap] setZoom 失败', e)
+        }
       }
     )
 
     this.$watch(
       () => this.markers,
       () => {
+        if (this._isDestroying || !this.map || !this._mapReady) return
         this.renderMarkers()
       },
       { deep: true, immediate: false }
@@ -132,12 +143,16 @@ export default {
     this.$watch(
       () => this.selectedId,
       (id) => {
-        if (!id) return
+        if (this._isDestroying || !id || !this.map || !this._mapReady) return
         const m = this._markerMap.get(String(id))
         if (m) {
-          m.openPopup()
-          const latlng = m.getLatLng()
-          this.map && this.map.panTo(latlng, { animate: this.canAnimate() })
+          try {
+            m.openPopup()
+            const latlng = m.getLatLng()
+            this.map.panTo(latlng, { animate: this.canAnimate() })
+          } catch (e) {
+            console.warn('[BaseMap] 标记交互失败', e)
+          }
         }
       }
     )
@@ -147,6 +162,7 @@ export default {
     this.$watch(
       () => this.roadPath,
       () => {
+        if (this._isDestroying || !this.map || !this._mapReady) return
         this.renderRoadPath && this.renderRoadPath()
       },
       { deep: true, immediate: true }
@@ -166,16 +182,79 @@ export default {
     )
   },
   beforeUnmount() {
+    // 立即标记为销毁中和未就绪，阻止所有后续操作
+    this._isDestroying = true
+    this._mapReady = false
+    this._zooming = false
+    
     window.removeEventListener('resize', this._resizeHandler)
     if (this._initTimer) {
       clearTimeout(this._initTimer)
       this._initTimer = null
     }
+    if (this._geoWatchId) {
+      try { navigator.geolocation.clearWatch(this._geoWatchId) } catch (e) {}
+      this._geoWatchId = null
+    }
     if (this.map) {
-      try { this.map.off() } catch {}
-      try { this.map.remove() } catch (e) {}
+      // 移除所有事件监听器（必须在清理图层之前）
+      try { 
+        this.map.off()
+        // 禁用所有动画选项
+        if (this.map.options) {
+          this.map.options.zoomAnimation = false
+          this.map.options.fadeAnimation = false
+          this.map.options.markerZoomAnimation = false
+        }
+      } catch (e) {}
+      
+      // 停止任何正在进行的动画和缩放转换
+      try { 
+        if (typeof this.map.stop === 'function') {
+          this.map.stop()
+        }
+        // 清除所有动画帧
+        if (this.map._animatingZoom) {
+          this.map._animatingZoom = false
+        }
+        if (this.map._zooming) {
+          this.map._zooming = false
+        }
+      } catch (e) {}
+      
+      // 清理图层
+      try {
+        if (this._roadPolyline) {
+          this._roadPolyline.remove()
+          this._roadPolyline = null
+        }
+        if (this._routeLayer) {
+          this._routeLayer.clearLayers()
+          this._routeLayer.remove()
+          this._routeLayer = null
+        }
+        if (this._markerLayer) {
+          this._markerLayer.clearLayers()
+          this._markerLayer.remove()
+          this._markerLayer = null
+        }
+        if (this._userLayer) {
+          this._userLayer.clearLayers()
+          this._userLayer.remove()
+          this._userLayer = null
+        }
+      } catch (e) {
+        console.warn('[BaseMap] 清理图层时出错', e)
+      }
+      
+      // 最后销毁地图
+      try { 
+        this.map.remove() 
+      } catch (e) {
+        console.warn('[BaseMap] 移除地图时出错', e)
+      }
+      
       this.map = null
-      this._mapReady = false
     }
   },
   methods: {
@@ -195,29 +274,32 @@ export default {
       if (!this.fullScreen) {
         el.style.height = typeof this.height === 'number' ? `${this.height}px` : this.height
       }
-  // 启用动画（平滑体验），但后续方法会根据 canAnimate 动态决定是否播放动画
-  this.map = L.map(el, { zoomAnimation: true, zoomAnimationThreshold: 4, fadeAnimation: true, preferCanvas: true }).setView(this.center, this.zoom)
-      // 使用 https 避免在 https 站点下出现 Mixed Content 报错；添加 fallback 逻辑
-      const layer = L.tileLayer('https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=7&x={x}&y={y}&z={z}', {
+  // 完全禁用所有动画，避免销毁时的异步动画错误
+  this.map = L.map(el, { 
+    zoomAnimation: false,
+    fadeAnimation: false,
+    markerZoomAnimation: false,
+    preferCanvas: true,
+    zoomControl: true
+  }).setView(this.center, this.zoom)
+      
+      // 使用 OpenStreetMap 作为默认底图（与 OSRM 路由生态一致）
+      const layer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
-        subdomains: ['1','2','3','4'],
-        attribution: '© 高德地图'
+        minZoom: 3,
+        attribution: '© OpenStreetMap contributors',
+        errorTileUrl: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7' // 透明1x1 gif
       })
+      
+      // 添加瓦片错误处理，静默失败
       layer.on('tileerror', (e) => {
-        // 仅首次报错后尝试添加 OSM 兜底图层，避免每次缩放输出错误
-        if (!this._fallbackAdded) {
-          this._fallbackAdded = true
-          console.warn('[BaseMap] 高德瓦片加载失败，切换到 OpenStreetMap 备用图源')
-          try {
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-              maxZoom: 19,
-              attribution: '© OpenStreetMap'
-            }).addTo(this.map)
-          } catch (err) {
-            console.error('[BaseMap] 添加备用图层失败', err)
-          }
+        // 避免瓦片加载错误导致红色界面
+        if (!this._tileErrorLogged) {
+          this._tileErrorLogged = true
+          console.warn('[BaseMap] 部分地图瓦片加载失败（网络问题或缩放过快），不影响使用')
         }
       })
+      
       layer.addTo(this.map)
 
   // 初始化标记图层
@@ -254,7 +336,15 @@ export default {
       })
       this.map.on('zoomend', () => {
         this._zooming = false
-        this._flushPendingRoadPath && this._flushPendingRoadPath()
+        try {
+          this._flushPendingRoadPath && this._flushPendingRoadPath()
+        } catch (e) {
+          console.warn('[BaseMap] 缩放后刷新路径失败', e)
+        }
+      })
+      // 添加额外的缩放动画保护
+      this.map.on('zoomanim', () => {
+        this._zooming = true
       })
       // 通用地图点击事件：向父组件发送点击位置（经纬度）
       this.map.on('click', (e) => {
@@ -268,14 +358,24 @@ export default {
       })
     },
     invalidateSizeSafe() {
-      if (this.map) {
-        // 根据当前可动画能力选择是否平滑（平滑时体验更好）
-        try { this.map.invalidateSize({ animate: this.canAnimate() }) } catch (e) { this.map.invalidateSize() }
+      if (this._isDestroying || !this.map) return
+      // 根据当前可动画能力选择是否平滑（平滑时体验更好）
+      try { this.map.invalidateSize({ animate: this.canAnimate() }) } catch (e) { 
+        try { this.map.invalidateSize() } catch (e2) {}
       }
     },
     renderMarkers() {
-      if (!this.map || !this._markerLayer) return
-      this._markerLayer.clearLayers()
+      if (this._isDestroying || !this.map || !this._markerLayer || !this._mapReady) return
+      // 避免在缩放动画期间清空图层（防止红色错误界面）
+      if (this._zooming) {
+        return
+      }
+      try {
+        this._markerLayer.clearLayers()
+      } catch (e) {
+        console.warn('[BaseMap] 清理标记图层时出错，已忽略', e)
+        return
+      }
       this._markerMap.clear()
       if (!Array.isArray(this.markers)) return
       const bounds = []
@@ -283,25 +383,47 @@ export default {
         const { id, name, latitude, longitude, popup } = mk
         if (typeof latitude !== 'number' || typeof longitude !== 'number') return
         let marker
-        if (mk.color) {
-          marker = L.circleMarker([latitude, longitude], {
-            radius: 8,
-            color: mk.color,
-            weight: 2,
-            fillColor: mk.color,
-            fillOpacity: 0.85
-          })
-        } else {
-          marker = L.marker([latitude, longitude])
+        const isStart = this.startAttractionId != null && String(id) === String(this.startAttractionId)
+        const isEnd = this.endAttractionId != null && String(id) === String(this.endAttractionId)
+        try {
+          if (isStart || isEnd) {
+            const color = isStart ? '#27ae60' : '#c0392b'
+            marker = L.circleMarker([latitude, longitude], {
+              radius: 10,
+              color,
+              weight: 3,
+              fillColor: color,
+              fillOpacity: 0.85
+            })
+            marker.addTo(this._markerLayer)
+            L.marker([latitude, longitude], {
+              icon: L.divIcon({
+                className: 'attraction-label',
+                html: `<div>${id}</div>`,
+                iconSize: [24,24],
+                iconAnchor: [12,30]
+              }),
+              interactive: false
+            }).addTo(this._markerLayer)
+          } else {
+            marker = L.marker([latitude, longitude])
+            marker.addTo(this._markerLayer)
+          }
+          const content = popup || name || `#${id}`
+          if (content && marker && marker.bindPopup) marker.bindPopup(content)
+          marker.on('click', () => this.$emit && this.$emit('marker-click', mk))
+          if (id !== undefined && id !== null) this._markerMap.set(String(id), marker)
+          bounds.push([latitude, longitude])
+        } catch (e) {
+          console.warn('[BaseMap] 添加标记失败', e)
         }
-        const content = popup || name || String(id || '')
-        if (content) marker.bindPopup(content)
-        marker.on('click', () => this.$emit && this.$emit('marker-click', mk))
-        if (id !== undefined && id !== null) this._markerMap.set(String(id), marker)
-        bounds.push([latitude, longitude])
       })
-      if (bounds.length > 0 && !this.fullScreen) {
-        try { this.map.fitBounds(bounds, { padding: [24, 24], animate: this.canAnimate() }) } catch {}
+      if (bounds.length > 0 && !this.fullScreen && this.map) {
+        try { 
+          this.map.fitBounds(bounds, { padding: [24, 24], animate: this.canAnimate() }) 
+        } catch (e) {
+          console.warn('[BaseMap] fitBounds 失败', e)
+        }
       }
     },
     // 计算两点间大圆距离（千米）
@@ -317,7 +439,10 @@ export default {
     // 绘制路径点与折线（带序号与分段距离）
     // 绘制真实道路导航路径
     renderRoadPath() {
-      if (!this.map || !this._routeLayer) return
+      // 增强地图存在性检查
+      if (this._isDestroying || !this.map || !this._routeLayer || !this._mapReady) return
+      
+      // 如果正在缩放动画，延迟处理
       if (this._zooming) {
         const latlngs = Array.isArray(this.roadPath)
           ? this.roadPath.filter(p => Array.isArray(p) && p.length === 2)
@@ -343,7 +468,7 @@ export default {
       this._updateRoadPolyline(latlngs)
     },
     _flushPendingRoadPath() {
-      if (!this._pendingRoadRender) return
+      if (this._isDestroying || !this._pendingRoadRender || !this.map || !this._routeLayer) return
       this._pendingRoadRender = false
       if (this._pendingRoadClear) {
         this._pendingRoadClear = false
@@ -358,50 +483,45 @@ export default {
       }
     },
     _updateRoadPolyline(latlngs) {
-      if (!Array.isArray(latlngs) || latlngs.length < 2) {
+      if (this._isDestroying || !this.map || !this._routeLayer || !Array.isArray(latlngs) || latlngs.length < 2) {
         this._clearRoadPolyline()
         return
       }
       if (!this._roadPolyline) {
-        this._roadPolyline = L.polyline(latlngs, { color: '#2980b9', weight: 5, opacity: 0.85, dashArray: '8 6', className: 'road-polyline' })
-        this._roadPolyline.addTo(this._routeLayer)
+        try {
+          this._roadPolyline = L.polyline(latlngs, { color: '#2980b9', weight: 5, opacity: 0.85, dashArray: '8 6', className: 'road-polyline' })
+          this._roadPolyline.addTo(this._routeLayer)
+        } catch (e) {
+          console.warn('[BaseMap] 创建路径线失败', e)
+        }
       } else {
         try {
           this._roadPolyline.setLatLngs(latlngs)
         } catch (e) {
-          try { this._routeLayer.removeLayer(this._roadPolyline) } catch (err) {}
-          this._roadPolyline = L.polyline(latlngs, { color: '#2980b9', weight: 5, opacity: 0.85, dashArray: '8 6', className: 'road-polyline' })
-          this._roadPolyline.addTo(this._routeLayer)
+          try { 
+            if (this._routeLayer && this._routeLayer.hasLayer && this._routeLayer.hasLayer(this._roadPolyline)) {
+              this._routeLayer.removeLayer(this._roadPolyline) 
+            }
+          } catch (err) {}
+          try {
+            this._roadPolyline = L.polyline(latlngs, { color: '#2980b9', weight: 5, opacity: 0.85, dashArray: '8 6', className: 'road-polyline' })
+            this._roadPolyline.addTo(this._routeLayer)
+          } catch (err) {
+            console.warn('[BaseMap] 重建路径线失败', err)
+          }
         }
       }
     },
-    // 绘制规划完成的最终路线（蓝色），支持悬停高亮与方向箭头（简易）
-    renderPlannedRoute() {
-      if (!this.map || !this._plannedLayer) return
-      if (this._zooming) { this._pendingPlannedRender = true; return }
-      this._plannedLayer.clearLayers()
-      if (!Array.isArray(this.plannedPath) || this.plannedPath.length < 2) return
-      const latlngs = this.plannedPath.filter(p => Array.isArray(p) && p.length === 2)
-      if (latlngs.length < 2) return
-      const poly = L.polyline(latlngs, { color: '#1e6bd6', weight: 5, opacity: 0.9, smoothFactor: 1.2 })
-      poly.on('mouseover', () => poly.setStyle({ color: '#ff9800', weight: 8 }))
-      poly.on('mouseout', () => poly.setStyle({ color: '#1e6bd6', weight: 5 }))
-      poly.addTo(this._plannedLayer)
-      // 简易方向箭头：在每段中点放置一个箭头图标（指向下一点）
-      for (let i = 0; i < latlngs.length - 1; i++) {
-        const [lat1, lon1] = latlngs[i]
-        const [lat2, lon2] = latlngs[i + 1]
-        const mid = [ (lat1 + lat2) / 2, (lon1 + lon2) / 2 ]
-        const angle = Math.atan2(lat2 - lat1, lon2 - lon1) * 180 / Math.PI
-        L.marker(mid, {
-          icon: L.divIcon({
-            className: 'planned-arrow',
-            html: `<div style="transform: rotate(${angle}deg)">➤</div>`,
-            iconSize: [20,20],
-            iconAnchor: [10,10]
-          }),
-          interactive: false
-        }).addTo(this._plannedLayer)
+    _clearRoadPolyline() {
+      if (this._roadPolyline) {
+        try { 
+          if (this._routeLayer && this._routeLayer.hasLayer && this._routeLayer.hasLayer(this._roadPolyline)) {
+            this._routeLayer.removeLayer(this._roadPolyline)
+          }
+        } catch (e) {
+          console.warn('[BaseMap] 清理路径线时出错，已忽略', e)
+        }
+        this._roadPolyline = null
       }
     },
     // ------- 定位相关 -------
@@ -485,15 +605,9 @@ export default {
       try { this.map.panTo([lat, lon], { animate: this.canAnimate() }) } catch (e) {}
     }
     ,
-    // 在动画前先判断地图是否就绪并且容器可见
+    // 完全禁用动画，避免销毁时的异步错误
     canAnimate() {
-      try {
-        const el = this.$refs.mapContainer
-        const visible = el && el.offsetParent !== null
-        return !!(this.map && this._mapReady && visible)
-      } catch (e) {
-        return false
-      }
+      return false  // 始终禁用动画
     }
   }
 }

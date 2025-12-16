@@ -6,16 +6,17 @@ from ..core_bridge import recommendation_bridge as rbridge
 
 rec_bp = Blueprint("recommendations", __name__)
 
-@rec_bp.after_request
-def _no_cache(resp):
-    """为本蓝图的所有响应添加 no-cache 头，避免浏览器缓存导致的空白/不可预览。"""
-    try:
-        resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
-        resp.headers["Pragma"] = "no-cache"
-        resp.headers["Expires"] = "0"
-    except Exception:
-        pass
-    return resp
+# 临时注释掉 after_request，排查 ERR_CONTENT_LENGTH_MISMATCH 问题
+# @rec_bp.after_request
+# def _no_cache(resp):
+#     """为本蓝图的所有响应添加 no-cache 头，避免浏览器缓存导致的空白/不可预览。"""
+#     try:
+#         resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+#         resp.headers["Pragma"] = "no-cache"
+#         resp.headers["Expires"] = "0"
+#     except Exception:
+#         pass
+#     return resp
 
 @rec_bp.route("/_ping", methods=["GET"])
 def ping():
@@ -259,4 +260,94 @@ def hot_list():
         finally:
             if conn:
                 conn.close()
-# ...existing code...
+
+@rec_bp.route("/search", methods=["GET"])
+def search():
+    """GET /api/recommendations/search?query=..&limit=..
+    搜索景点推荐：根据查询关键词匹配景点名称或描述
+    """
+    query = request.args.get("query", "").strip()
+    limit = int(request.args.get("limit", 30))
+    
+    if not query:
+        return jsonify({"success": False, "message": "query parameter is required"}), 400
+    
+    print(f"[Search] 搜索: query={query}, limit={limit}")
+    
+    conn = None
+    try:
+        conn = get_connection()
+        with conn.cursor(pymysql.cursors.DictCursor) as cursor:
+            search_pattern = f"%{query}%"
+            try:
+                cursor.execute(
+                    """
+                    SELECT 
+                      attraction_id, name, category, latitude, longitude,
+                      popularity, avg_rating, rating_count, visitor_count
+                    FROM attractions
+                    WHERE name LIKE %s
+                      AND (category IS NULL OR category <> '交通')
+                    ORDER BY popularity DESC, avg_rating DESC
+                    LIMIT %s
+                    """,
+                    (search_pattern, limit)
+                )
+            except Exception as e1:
+                print(f"[Search] 查询失败，尝试备用字段: {e1}")
+                cursor.execute(
+                    """
+                    SELECT 
+                      id AS attraction_id, name, category, latitude, longitude,
+                      popularity, avg_rating, rating_count, visitor_count
+                    FROM attractions
+                    WHERE name LIKE %s
+                      AND (category IS NULL OR category <> '交通')
+                    ORDER BY popularity DESC, avg_rating DESC
+                    LIMIT %s
+                    """,
+                    (search_pattern, limit)
+                )
+                    
+            results = cursor.fetchall()
+            print(f"[Search] 找到 {len(results)} 条记录")
+            
+            # 清理数据
+            cleaned_results = []
+            for r in results:
+                try:
+                    item = {
+                        "attraction_id": int(r.get("attraction_id") or 0),
+                        "name": str(r.get("name") or ""),
+                        "category": str(r.get("category") or ""),
+                        "type": str(r.get("category") or ""),
+                        "latitude": float(r.get("latitude") or 0),
+                        "longitude": float(r.get("longitude") or 0),
+                        "popularity": int(r.get("popularity") or 0),
+                        "rating": float(r.get("avg_rating") or 0),
+                        "avg_rating": float(r.get("avg_rating") or 0),
+                        "rating_count": int(r.get("rating_count") or 0),
+                        "visitor_count": int(r.get("visitor_count") or 0)
+                    }
+                    cleaned_results.append(item)
+                except Exception as e:
+                    print(f"[Search] 跳过无效记录: {e}")
+                    continue
+            
+            print(f"[Search] 返回 {len(cleaned_results)} 条记录")
+            
+            return jsonify({
+                "success": True,
+                "data": {
+                    "results": cleaned_results,
+                    "query": query,
+                    "total": len(cleaned_results)
+                }
+            })
+            
+    except Exception as e:
+        import traceback
+        error_msg = traceback.format_exc()
+        print(f"Search Recommendation API Error:\n{error_msg}")
+        return jsonify({"success": False, "message": str(e)}), 500
+

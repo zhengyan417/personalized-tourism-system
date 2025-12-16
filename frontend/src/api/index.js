@@ -46,14 +46,21 @@ const api = axios.create({
   timeout: 15000,
   headers: {
     'Content-Type': 'application/json'
-  }
+  },
+  withCredentials: true // 携带 Cookie 以保持登录会话
 })
 
 api.interceptors.response.use(
   (res) => res,
   (err) => {
-    // 统一错误打印，页面可根据需要再处理
-    console.error('[API Error]', err?.response?.status, err?.message)
+    // 静默处理401（未登录）和常见的用户错误
+    const status = err?.response?.status
+    if (status === 401) {
+      // 401 未授权是正常的业务场景，不打印错误
+      return Promise.reject(err)
+    }
+    // 其他错误才打印到控制台
+    console.error('[API Error]', status, err?.message)
     return Promise.reject(err)
   }
 )
