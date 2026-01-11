@@ -1,11 +1,11 @@
-from flask import Blueprint, request, jsonify, Response
+from flask import Blueprint, Flask, request, jsonify, Response
 import requests
 import json
 
 ai_bp = Blueprint('ai', __name__, url_prefix='/api/ai')
 
-COZE_API_URL = 'https://api.coze.com/v3/chat'
-COZE_API_TOKEN = 'pat_46lwbTaFlf0a2T4ifTN7eFlNXfmpV49GyA2eAikUEdPdUr17WVlCrjpHHhTCGiS6'
+COZE_API_URL = 'https://api.coze.cn/v3/chat'
+COZE_API_TOKEN = 'pat_VdoKRNpNXnmrTo1iLIhYOKwjPs4tODFglzKKfgQPsYNWVUD4owrKSc8UWPHXAqJQ'
 BOT_ID = '7583976391813709834'
 
 @ai_bp.route('/chat', methods=['POST'])
@@ -77,3 +77,31 @@ def chat():
     except Exception as e:
         print(f'[AI] Chat error: {e}')
         return jsonify({'error': str(e)}), 500
+
+def create_app():
+    app = Flask(__name__)
+    app.register_blueprint(ai_bp)
+    
+    @app.route('/')
+    def index():
+        return jsonify({
+            "message": "AI Chat API is running!",
+            "endpoint": "/api/ai/chat (POST)",
+            "example": {
+                "query": "推荐一个适合年轻人的海岛游",
+                "user_id": "user123",
+                "user_profile": {
+                    "username": "小明",
+                    "age": 25,
+                    "occupation": "程序员",
+                    "bio": "喜欢潜水和摄影"
+                }
+            }
+        })
+    
+    return app
+
+if __name__ == '__main__':
+    app = create_app()
+    print("Starting AI Chat API server on http://localhost:5000")
+    app.run(host='0.0.0.0', port=5000, debug=True)
