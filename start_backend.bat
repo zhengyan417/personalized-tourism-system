@@ -1,3 +1,3 @@
 @echo off
-cd /d c:\code\travel\backend
+cd /d e:\project\personalized-tourism-system\backend
 python app.py

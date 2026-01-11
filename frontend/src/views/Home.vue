@@ -2,20 +2,18 @@
 	<div class="h-[calc(100vh-64px)] flex flex-col md:flex-row bg-gray-50 relative">
 		<!-- 左侧功能面板 -->
 		<div class="w-full md:w-[400px] bg-white border-r border-gray-200 flex flex-col shadow-xl z-20 h-full">
-			<!-- 顶部 Tab 切换 -->
-			<div class="flex border-b border-gray-100 bg-white shrink-0">
-				<button 
-					v-for="tab in tabs" 
-					:key="tab.id"
-					@click="switchTab(tab.id)"
-					class="flex-1 py-3 text-sm font-semibold flex items-center justify-center gap-2 transition-colors"
-					:class="activeTab === tab.id ? 'text-brand-600 border-b-2 border-brand-500 bg-brand-50/50' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'"
-				>
-					<i :class="tab.icon"></i> {{ tab.name }}
-				</button>
-			</div>
-
-			<!-- 内容区域 -->
+		<!-- 顶部 Tab 切换 -->
+		<div class="flex border-b border-gray-100 bg-white shrink-0">
+			<button 
+				v-for="tab in tabs" 
+				:key="tab.id"
+				@click="switchTab(tab.id)"
+				class="flex-1 py-3 text-sm font-semibold flex items-center justify-center gap-2 transition-colors"
+				:class="activeTab === tab.id ? 'text-brand-600 border-b-2 border-brand-500 bg-brand-50/50' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'"
+			>
+				<i :class="tab.icon"></i> {{ tab.name }}
+			</button>
+		</div>			<!-- 内容区域 -->
 			<div class="flex-1 overflow-y-auto bg-gray-50/50 p-4">
 				<!-- 附近 -->
 				<div v-if="activeTab==='place'" class="space-y-4">
@@ -160,7 +158,7 @@
 									<p class="text-3xl font-semibold">{{ routeStats.distanceText }}</p>
 								</div>
 							</div>
-							<p class="text-xs text-white/80">提示：点击地图即可添加站点，建议不少于两个坐标点以获取完整线路。</p>
+							<p class="text-xs text-white/80">提示：点击地图添加站点，使用下方的模式切换开关选择"顺序访问"或"智能优化"模式。</p>
 						</div>
 					</div>
 
@@ -214,6 +212,31 @@
 							<h4 class="text-base font-semibold text-gray-900">标记路线</h4>
 							<p class="text-sm text-gray-500">在左侧地图选择旅程关键节点，也可以手动撤销、反转或清空。</p>
 						</div>
+						
+						<!-- 路径规划模式选择 -->
+						<div class="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-3 border border-blue-100">
+							<div class="flex items-center justify-between mb-2">
+								<label class="text-sm font-semibold text-gray-700">路径规划模式</label>
+								<button 
+									@click="optimizeMode = !optimizeMode"
+									class="px-3 py-1 rounded-lg text-xs font-bold transition-all"
+									:class="optimizeMode ? 'bg-amber-500 text-white shadow-md' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'"
+								>
+									{{ optimizeMode ? '智能优化' : '顺序访问' }}
+								</button>
+							</div>
+							<p class="text-xs text-gray-600">
+								<span v-if="optimizeMode">
+									<i class="bi bi-stars text-amber-500"></i> 
+									<strong>智能优化模式：</strong>系统会自动计算最优访问顺序，第一个点为起点，其余点按最短路径排序
+								</span>
+								<span v-else>
+									<i class="bi bi-list-ol text-blue-500"></i> 
+									<strong>顺序访问模式：</strong>严格按照您添加点的顺序进行路径规划
+								</span>
+							</p>
+						</div>
+						
 						<div class="flex flex-wrap gap-2">
 							<button class="flex-1 min-w-[180px] py-2.5 rounded-xl text-sm font-semibold transition-colors flex items-center justify-center gap-2"
 								:class="routeMode ? 'bg-rose-50 text-rose-600 border border-rose-200 hover:bg-rose-100' : 'bg-brand-600 text-white hover:bg-brand-700'"
@@ -294,56 +317,6 @@
 						</div>
 					</div>
 				</div>
-
-				<!-- 日记 -->
-				<div v-else-if="activeTab==='diary'" class="space-y-4">
-					<div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 space-y-3">
-						<div>
-							<label class="block text-xs font-medium text-gray-500 mb-1">标题</label>
-							<input v-model.trim="diary.form.title" type="text" class="w-full rounded-lg border-gray-200 text-sm focus:ring-brand-500 focus:border-brand-500" placeholder="给日记起个标题..." />
-						</div>
-						<div>
-							<label class="block text-xs font-medium text-gray-500 mb-1">内容</label>
-							<textarea v-model.trim="diary.form.content" rows="3" class="w-full rounded-lg border-gray-200 text-sm focus:ring-brand-500 focus:border-brand-500 resize-none" placeholder="记录此刻的心情与见闻..."></textarea>
-						</div>
-						<div class="grid grid-cols-2 gap-3">
-							<div>
-								<label class="block text-xs font-medium text-gray-500 mb-1">纬度</label>
-								<input v-model.number="diary.form.latitude" type="number" step="0.000001" class="w-full rounded-lg border-gray-200 text-xs bg-gray-50" readonly />
-							</div>
-							<div>
-								<label class="block text-xs font-medium text-gray-500 mb-1">经度</label>
-								<input v-model.number="diary.form.longitude" type="number" step="0.000001" class="w-full rounded-lg border-gray-200 text-xs bg-gray-50" readonly />
-							</div>
-						</div>
-						<div class="flex gap-2 pt-1">
-							<button class="px-3 py-1.5 border border-gray-200 rounded-lg text-xs text-gray-600 hover:bg-gray-50" @click="locate">
-								<i class="bi bi-geo-alt"></i> 获取位置
-							</button>
-							<button class="flex-1 bg-brand-600 text-white py-1.5 rounded-lg text-xs font-medium hover:bg-brand-700 transition-colors flex items-center justify-center gap-2" :disabled="diary.submitting" @click="submitDiary">
-								<span v-if="diary.submitting" class="spinner-border spinner-border-sm w-3 h-3"></span>
-								<i class="bi bi-send"></i> 发布日记
-							</button>
-						</div>
-					</div>
-
-					<div class="space-y-2">
-						<div v-if="diary.list.length===0" class="text-center py-8 text-gray-400">
-							<i class="bi bi-journal-album text-4xl mb-2 block"></i>
-							<p class="text-sm">暂无日记，开始记录吧！</p>
-						</div>
-						<button v-for="d in diary.list" :key="d.id" 
-							class="w-full text-left bg-white p-3 rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all group"
-							:class="{ 'ring-2 ring-brand-500 border-transparent': selectedId === d.id }"
-							@click="selectDiary(d)">
-							<div class="flex justify-between items-start mb-1">
-								<h4 class="font-bold text-gray-800 group-hover:text-brand-600 transition-colors line-clamp-1">{{ d.title }}</h4>
-								<span class="text-[10px] text-gray-400 whitespace-nowrap">{{ d.date }}</span>
-							</div>
-							<p class="text-xs text-gray-500 line-clamp-2">{{ d.snippet || d.content }}</p>
-						</button>
-					</div>
-				</div>
 			</div>
 		</div>
 
@@ -359,6 +332,7 @@
 				:selected-id="selectedId"
 				:route-mode="activeTab === 'route' && routeMode"
 				:route-markers="routeMarkers"
+				:road-path="roadPathCoords"
 				@marker-click="onMarkerClick"
 				@location-update="onLocationUpdate"
 				@route-point-add="onRoutePointAdd"
@@ -383,7 +357,6 @@ import BaseMap from '../components/map/BaseMap.vue'
 import { fetchNearbyPlaces, fetchCategories } from '../api/place'
 import { fetchRecommendations, searchRecommendations } from '../api/recommendation'
 import { planSimple } from '../api/route'
-import { fetchDiaries, fetchDiaryDetail, createDiary } from '../api/diary'
 import { searchPlaces } from '../api/geocode'
 
 export default {
@@ -394,22 +367,21 @@ export default {
 			tabs: [
 				{ id: 'place', name: '附近', icon: 'bi-geo-alt' },
 				{ id: 'recommend', name: '推荐', icon: 'bi-stars' },
-				{ id: 'route', name: '路径', icon: 'bi-sign-turn-right' },
-				{ id: 'diary', name: '日记', icon: 'bi-journal-text' }
+				{ id: 'route', name: '路径', icon: 'bi-sign-turn-right' }
 			],
 			activeTab: 'place',
 			mapCenter: [39.9042, 116.4074],
 			selectedId: null,
 			// 路径
 			routeMode: false,
+			routeMarkers: [],
 			routeInfo: null,
 			planning: false,
+			optimizeMode: false, // false=顺序模式, true=优化模式
 			// 附近
 			place: { lat: 39.9042, lon: 116.4074, radius: 5, category: '', categories: [], list: [], loading: false },
 			// 推荐
 			recommend: { query: '', list: [], loading: false, showAdv: false, categories: ['历史景点','自然风光','景点','美食','自然','历史'], prefs: { algorithm: 'content_based', sort_by: 'score', top_n: 100, categories: [] } },
-			// 日记
-			diary: { list: [], selected: null, submitting: false, form: { title: '', content: '', latitude: null, longitude: null } },
 			// 路径搜索
 			routeSearch: { query: '', loading: false, results: [], error: null }
 		}
@@ -434,20 +406,8 @@ export default {
 						popup: `${p.label || '路线点'} · ${p.latitude.toFixed(4)}, ${p.longitude.toFixed(4)}`
 					}))
 			}
-			if (this.activeTab === 'diary') {
-				return (this.diary.list || []).filter(d => typeof d.latitude==='number' && typeof d.longitude==='number')
-					.map(d => ({ id: d.id, name: d.title, latitude: d.latitude, longitude: d.longitude, popup: `${d.title} · ${d.date||''}` }))
-			}
-			if (this.activeTab === 'route') {
-				const m = []
-				if (this.startPoint) m.push({ id: 'start', name: '起点', latitude: this.startPoint.latitude, longitude: this.startPoint.longitude, popup: '起点', color: '#2ecc71' })
-				this.waypoints.forEach((w, idx) => m.push({ id: 'wp'+idx, name: '途经'+(idx+1), latitude: w.latitude, longitude: w.longitude, popup: '途经点 '+(idx+1), color: '#f39c12' }))
-				if (this.endPoint) m.push({ id: 'end', name: '终点', latitude: this.endPoint.latitude, longitude: this.endPoint.longitude, popup: '终点', color: '#e74c3c' })
-				return m
-			}
 			return []
-		}
-	,
+		},
 		routeStats() {
 			const points = this.routeMarkers.length
 			const segments = Math.max(points - 1, 0)
@@ -456,14 +416,21 @@ export default {
 			const distanceLabel = Number.isFinite(distanceValue) && distanceValue > 0 ? distanceValue.toFixed(1) : '--'
 			const distanceText = distanceLabel === '--' ? '--' : `${distanceLabel} km`
 			return { points, segments, distanceValue, distanceLabel, distanceText }
+		},
+		roadPathCoords() {
+			// 从 routeInfo 中提取道路路径坐标
+			if (!this.routeInfo) return []
+			// 尝试从不同位置获取路径数据
+			const path = this.routeInfo.data?.road_path || this.routeInfo.road_path || []
+			return Array.isArray(path) ? path : []
 		}
 	},
 	async mounted() {
-		// 初始化类别、附近与推荐、日记
+		// 初始化类别、附近与推荐
 		this.place.categories = await fetchCategories()
 			// 初始将输入与中心同步
 			this.place.lat = this.mapCenter[0]; this.place.lon = this.mapCenter[1]
-			await Promise.all([this.loadNearby(), this.refreshRecommend(), this.loadDiaries()])
+			await Promise.all([this.loadNearby(), this.refreshRecommend()])
 	},
 	methods: {
 		goLogin() {
@@ -473,15 +440,11 @@ export default {
 		locate() { this.$refs.baseMap?.locateUser?.(false) },
 		onLocationUpdate(pos) {
 			if (!pos) return
-			// 更新默认地图中心与日记坐标
+			// 更新默认地图中心
 			this.mapCenter = [pos.latitude, pos.longitude]
-				// 同步到“附近”输入
+				// 同步到"附近"输入
 				this.place.lat = pos.latitude
 				this.place.lon = pos.longitude
-			if (this.activeTab === 'diary') {
-				this.diary.form.latitude = pos.latitude
-				this.diary.form.longitude = pos.longitude
-			}
 		},
 		onMarkerClick(item) {
 			if (!item) return
@@ -540,41 +503,80 @@ export default {
 			if (typeof r.latitude==='number' && typeof r.longitude==='number') this.mapCenter = [r.latitude, r.longitude]
 		},
 		// --- 路径 ---
-		setMode(mode) { this.$store.commit('routePlanning/setMode', mode) },
-		clearAllRoute() { this.$store.commit('routePlanning/clearAll') },
-		onRoutePointAdd(p) {
-			const mode = this.routePlanningMode
-			if (!mode) return
-			const point = { ...p, id: `${Date.now()}-${Math.random()}` }
-			if (mode === 'setStart') this.$store.commit('routePlanning/setStart', point)
-			else if (mode === 'setEnd') this.$store.commit('routePlanning/setEnd', point)
-			else if (mode === 'addWaypoint') this.$store.commit('routePlanning/addWaypoint', point)
+		toggleRouteMode() { this.routeMode = !this.routeMode },
+		undoRoute() { if (this.routeMarkers.length) this.routeMarkers.pop() },
+		clearRoute() { this.routeMarkers = []; this.routeInfo = null },
+		reverseRoute() { if (this.routeMarkers.length>=2) this.routeMarkers = [...this.routeMarkers].reverse() },
+		// 计算两点之间的距离（Haversine公式）
+		calculateDistance(lat1, lon1, lat2, lon2) {
+			const R = 6371 // 地球半径（公里）
+			const dLat = (lat2 - lat1) * Math.PI / 180
+			const dLon = (lon2 - lon1) * Math.PI / 180
+			const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+				Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+				Math.sin(dLon / 2) * Math.sin(dLon / 2)
+			const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+			return R * c
 		},
-		generateRouteRequest() {
-			return {
-				start_id: this.startPoint?.id,
-				end_id: this.endPoint?.id,
-				waypoint_ids: this.waypoints.map(w => w.id)
+		// 使用贪心算法（最近邻）获取优化后的路线顺序
+		getOptimizedRoute(markers) {
+			if (markers.length < 3) return markers
+			
+			// 固定第一个点作为起点
+			const start = markers[0]
+			const remaining = [...markers.slice(1)]
+			const optimized = [start]
+			
+			// 贪心算法：每次选择距离当前点最近的未访问点
+			while (remaining.length > 0) {
+				const current = optimized[optimized.length - 1]
+				let nearestIndex = 0
+				let minDistance = this.calculateDistance(
+					current.latitude, current.longitude,
+					remaining[0].latitude, remaining[0].longitude
+				)
+				
+				for (let i = 1; i < remaining.length; i++) {
+					const dist = this.calculateDistance(
+						current.latitude, current.longitude,
+						remaining[i].latitude, remaining[i].longitude
+					)
+					if (dist < minDistance) {
+						minDistance = dist
+						nearestIndex = i
+					}
+				}
+				
+				optimized.push(remaining[nearestIndex])
+				remaining.splice(nearestIndex, 1)
 			}
+			
+			return optimized
 		},
-		async computeRoute() {
-			if (!this.canPlan) return
-			const payload = this.generateRouteRequest()
+		async planSimpleRoute() {
+			if (this.routeMarkers.length < 2) return
 			this.planning = true
-			this.$store.commit('routePlanning/setLoading', true)
-			this.$store.commit('routePlanning/setError', '')
 			try {
-				const { planRoute } = await import('../api/routePlanning.js')
-				const data = await planRoute(payload)
-				this.$store.commit('routePlanning/setCalculatedRoute', data)
-			} catch (e) {
-				console.error('规划失败', e)
-				this.$store.commit('routePlanning/setError', e.message || '规划失败')
-				alert(e.message || '规划失败')
-			} finally {
-				this.planning = false
-				this.$store.commit('routePlanning/setLoading', false)
-			}
+				// 根据模式决定是否优化顺序
+				let markers = [...this.routeMarkers]
+				
+				if (this.optimizeMode && markers.length >= 3) {
+					// 智能优化模式：自动优化访问顺序
+					markers = this.getOptimizedRoute(markers)
+				}
+				// 否则使用原始顺序（顺序模式）
+				
+				// 提取起点和终点
+				const start = markers[0]
+				const end = markers[markers.length - 1]
+				
+				// 提取中间waypoints（如果有的话）
+				const waypoints = markers.slice(1, -1)
+				
+				// 调用多点路径规划API
+				const info = await planSimple(start, end, waypoints)
+				this.routeInfo = info
+			} catch (e) { console.error('路线计算失败', e); this.routeInfo = null } finally { this.planning = false }
 		},
 		// 来自 BaseMap 的事件
 		// route-point-add
@@ -633,41 +635,6 @@ export default {
 			} finally {
 				this.routeSearch.loading = false
 			}
-		},
-		// --- 日记 ---
-		async loadDiaries() {
-			try {
-				const list = await fetchDiaries({ user_id: 1 })
-				this.diary.list = Array.isArray(list) ? list : []
-			} catch (e) { console.error('加载日记失败', e); this.diary.list = [] }
-		},
-		async submitDiary() {
-			if (!this.diary.form.title || !this.diary.form.content) return
-			this.diary.submitting = true
-			try {
-				const created = await createDiary({
-					user_id: 1,
-					title: this.diary.form.title,
-					content: this.diary.form.content,
-					latitude: this.diary.form.latitude,
-					longitude: this.diary.form.longitude
-				})
-				if (created) {
-					this.diary.list = [created, ...this.diary.list]
-					this.activeTab = 'diary'
-					this.selectedId = created.id
-					if (typeof created.latitude==='number' && typeof created.longitude==='number') this.mapCenter = [created.latitude, created.longitude]
-					this.diary.form = { title: '', content: '', latitude: null, longitude: null }
-				}
-			} catch (e) { console.error('创建日记失败', e) } finally { this.diary.submitting = false }
-		},
-		async selectDiary(d) {
-			try {
-				const detail = await fetchDiaryDetail(d.id)
-				this.diary.selected = detail || d
-			} catch { this.diary.selected = d }
-			this.selectedId = d.id
-			if (typeof d.latitude==='number' && typeof d.longitude==='number') this.mapCenter = [d.latitude, d.longitude]
 		}
 	}
 }

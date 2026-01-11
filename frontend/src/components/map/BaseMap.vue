@@ -48,11 +48,6 @@ export default {
     roadPath: {
       type: Array,
       default: () => []
-    },
-    // 规划完成后的路径坐标数组 [[lat,lng],...]
-    plannedPath: {
-      type: Array,
-      default: () => []
     }
     ,
     // 选定起终点高亮（景点ID）
@@ -164,19 +159,6 @@ export default {
       () => {
         if (this._isDestroying || !this.map || !this._mapReady) return
         this.renderRoadPath && this.renderRoadPath()
-      },
-      { deep: true, immediate: true }
-    )
-
-    // 监听规划路线
-    this.$watch(
-      () => this.plannedPath,
-      () => {
-        if (this._zooming) {
-          this._pendingPlannedRender = true
-        } else {
-          this.renderPlannedRoute && this.renderPlannedRoute()
-        }
       },
       { deep: true, immediate: true }
     )
@@ -306,7 +288,6 @@ export default {
   this._markerLayer = L.layerGroup().addTo(this.map)
   // 路径图层（路径点与折线）
   this._routeLayer = L.layerGroup().addTo(this.map)
-  this._plannedLayer = L.layerGroup().addTo(this.map)
   this.renderMarkers()
   this.renderRoadPath && this.renderRoadPath()
       // 标记地图已就绪（用于判断是否可安全执行动画）
@@ -315,13 +296,11 @@ export default {
           this.map.whenReady(() => {
             this._mapReady = true
             // 地图真正 ready 后再次强制渲染路径，避免初始化阶段 _routeLayer 为空导致未绘制
-            try { this.renderRoute && this.renderRoute() } catch {}
-            try { this.renderPlannedRoute && this.renderPlannedRoute() } catch {}
+            try { this.renderRoadPath && this.renderRoadPath() } catch {}
           })
         } else {
           this._mapReady = true
-          try { this.renderRoute && this.renderRoute() } catch {}
-          try { this.renderPlannedRoute && this.renderPlannedRoute() } catch {}
+          try { this.renderRoadPath && this.renderRoadPath() } catch {}
         }
       } catch (e) { this._mapReady = true }
       // 添加定位控件与用户定位图层
@@ -657,10 +636,5 @@ export default {
   border: 1px solid #ddd;
   box-shadow: 0 1px 2px rgba(0,0,0,0.2);
   white-space: nowrap;
-}
-.planned-arrow div {
-  color: #1e6bd6;
-  font-size: 16px;
-  text-shadow: 0 0 2px rgba(0,0,0,0.4);
 }
 </style>

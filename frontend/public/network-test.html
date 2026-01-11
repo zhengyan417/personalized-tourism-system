@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>网络访问测试</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            padding: 32px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        h1 {
+            color: #667eea;
+            margin-bottom: 24px;
+            font-size: 28px;
+        }
+        .info-box {
+            background: #f7fafc;
+            border-left: 4px solid #667eea;
+            padding: 16px;
+            margin: 16px 0;
+            border-radius: 8px;
+        }
+        .info-box h3 {
+            color: #2d3748;
+            margin-bottom: 12px;
+            font-size: 16px;
+        }
+        .info-box p {
+            color: #4a5568;
+            margin: 8px 0;
+            font-size: 14px;
+        }
+        .info-box code {
+            background: #edf2f7;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-family: 'Monaco', 'Courier New', monospace;
+            color: #667eea;
+        }
+        .btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            margin: 8px 8px 8px 0;
+            transition: all 0.3s ease;
+        }
+        .btn:hover {
+            background: #5a67d8;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+        .btn:disabled {
+            background: #cbd5e0;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .result {
+            margin-top: 24px;
+            padding: 16px;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        .success {
+            background: #f0fdf4;
+            border: 2px solid #86efac;
+            color: #166534;
+        }
+        .error {
+            background: #fef2f2;
+            border: 2px solid #fca5a5;
+            color: #991b1b;
+        }
+        .loading {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 8px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        pre {
+            background: #2d3748;
+            color: #68d391;
+            padding: 16px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin-top: 12px;
+            font-size: 13px;
+        }
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .status-ok { background: #48bb78; }
+        .status-error { background: #f56565; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🌐 网络访问诊断工具</h1>
+        
+        <div class="info-box">
+            <h3>📍 当前访问信息</h3>
+            <p><strong>访问地址:</strong> <code id="currentUrl"></code></p>
+            <p><strong>主机名:</strong> <code id="hostname"></code></p>
+            <p><strong>端口:</strong> <code id="port"></code></p>
+        </div>
+        
+        <div class="info-box">
+            <h3>🔗 后端API配置</h3>
+            <p><strong>API地址:</strong> <code id="apiUrl"></code></p>
+            <p id="apiNote"></p>
+        </div>
+        
+        <div>
+            <button class="btn" onclick="testCategories()">
+                测试分类API
+            </button>
+            <button class="btn" onclick="testNearby()">
+                测试附近景点
+            </button>
+            <button class="btn" onclick="testLogin()">
+                测试登录
+            </button>
+            <button class="btn" onclick="clearResult()">
+                清空结果
+            </button>
+        </div>
+        
+        <div id="result"></div>
+    </div>
+    
+    <script>
+        // 显示当前访问信息
+        const currentUrl = window.location.href;
+        const hostname = window.location.hostname;
+        const port = window.location.port || '默认';
+        
+        document.getElementById('currentUrl').textContent = currentUrl;
+        document.getElementById('hostname').textContent = hostname;
+        document.getElementById('port').textContent = port;
+        
+        // 计算后端地址
+        const protocol = window.location.protocol;
+        const backendUrl = `${protocol}//${hostname}:5000`;
+        document.getElementById('apiUrl').textContent = backendUrl;
+        
+        if (hostname === 'localhost' || hostname === '127.0.0.1') {
+            document.getElementById('apiNote').innerHTML = 
+                '<span class="status-indicator status-ok"></span>本地访问模式';
+        } else {
+            document.getElementById('apiNote').innerHTML = 
+                '<span class="status-indicator status-ok"></span>网络访问模式 - 后端地址已自动适配';
+        }
+        
+        function showLoading() {
+            document.getElementById('result').innerHTML = 
+                '<div class="result"><span class="loading"></span>正在请求...</div>';
+        }
+        
+        function showSuccess(title, data) {
+            document.getElementById('result').innerHTML = `
+                <div class="result success">
+                    <strong>✓ ${title}</strong>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                </div>
+            `;
+        }
+        
+        function showError(title, error) {
+            document.getElementById('result').innerHTML = `
+                <div class="result error">
+                    <strong>✗ ${title}</strong>
+                    <p>${error}</p>
+                </div>
+            `;
+        }
+        
+        function clearResult() {
+            document.getElementById('result').innerHTML = '';
+        }
+        
+        async function testCategories() {
+            showLoading();
+            try {
+                const response = await fetch(`${backendUrl}/api/places/categories`, {
+                    method: 'GET',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    showSuccess('分类API测试成功', data);
+                } else {
+                    showError('分类API请求失败', `状态码: ${response.status}`);
+                }
+            } catch (error) {
+                showError('分类API连接失败', error.message);
+            }
+        }
+        
+        async function testNearby() {
+            showLoading();
+            try {
+                const response = await fetch(`${backendUrl}/api/places/nearby?lat=39.9042&lon=116.4074&radius=5`, {
+                    method: 'GET',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    showSuccess(`附近景点API测试成功 (找到 ${data.count || 0} 个)`, {
+                        count: data.count,
+                        sample: data.data?.slice(0, 3)
+                    });
+                } else {
+                    showError('附近景点API请求失败', `状态码: ${response.status}`);
+                }
+            } catch (error) {
+                showError('附近景点API连接失败', error.message);
+            }
+        }
+        
+        async function testLogin() {
+            showLoading();
+            try {
+                const response = await fetch(`${backendUrl}/api/auth/login`, {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        username: 'caipj315',
+                        password: 'cai123456'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showSuccess('登录测试成功', data);
+                } else {
+                    showError('登录失败', data.message || `状态码: ${response.status}`);
+                }
+            } catch (error) {
+                showError('登录API连接失败', error.message);
+            }
+        }
+    </script>
+</body>
+</html>

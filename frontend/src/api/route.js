@@ -17,16 +17,59 @@ function normalizeAxiosError(err) {
 }
 
 // 旧版简单规划（保留占位，可按需求删除或改造）
-export async function planSimple(from, to) {
+// 改为传递景点名称而非坐标，或直接调用导航服务
+export async function planSimple(from, to, waypoints = []) {
 	if (!from || !to) return null
-	const params = {
-		from_lat: from.latitude,
-		from_lon: from.longitude,
-		to_lat: to.latitude,
-		to_lon: to.longitude
+	// 如果传入的是坐标对象，使用道路导航
+	if (from.latitude !== undefined && to.latitude !== undefined) {
+		// 内联调用导航API
+		const params = {
+			start_lat: from.latitude,
+			start_lon: from.longitude,
+			end_lat: to.latitude,
+			end_lon: to.longitude,
+			profile: 'driving'
+		}
+		
+		// 添加waypoints参数
+		if (waypoints && waypoints.length > 0) {
+			// 将waypoints格式化为 "lat,lon;lat,lon" 格式
+			const waypointsStr = waypoints
+				.filter(wp => wp.latitude !== undefined && wp.longitude !== undefined)
+				.map(wp => `${wp.latitude},${wp.longitude}`)
+				.join(';')
+			if (waypointsStr) {
+				params.waypoints = waypointsStr
+			}
+		}
+		
+		try {
+			const { data } = await api.get('/api/routes/navigate', { params })
+			if (data && !data.error) {
+				return {
+					status: 'success',
+					route: [from.name || from.label || '起点', to.name || to.label || '终点'],
+					distance_km: data.data?.distance_km || data.summary?.distance_km || 0,
+					provider: data.data?.provider || data.provider,
+					...data
+				}
+			}
+		} catch (err) {
+			console.error('导航失败:', err)
+		}
+		return null
 	}
-	const { data } = await api.get('/api/route/plan', { params })
-	if (data?.status === 'success') return data
+	// 否则按景点名称调用原API
+	const params = {
+		start: from.name || from,
+		end: to.name || to
+	}
+	try {
+		const { data } = await api.get('/api/routes/plan', { params })
+		if (data?.status === 'success') return data
+	} catch (err) {
+		console.error('路径规划失败:', err)
+	}
 	return null
 }
 
