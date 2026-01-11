@@ -102,7 +102,67 @@
 								<span class="inline-flex items-center gap-1"><i class="bi bi-person-circle"></i>{{ selectedDiary.username || '匿名用户' }}</span>
 								<span class="inline-flex items-center gap-1"><i class="bi bi-geo-alt-fill"></i>{{ selectedDiary.attraction_name || '未关联景点' }}</span>
 							</p>
-							<p class="text-base leading-7 text-slate-700 whitespace-pre-line">{{ selectedDiary.content || selectedDiary.snippet }}</p>
+							<p class="text-base leading-7 text-slate-700 whitespace-pre-line mb-4">{{ selectedDiary.content || selectedDiary.snippet }}</p>
+							
+							<!-- 点赞和评论区域 -->
+							<div class="border-t border-slate-200 pt-4 space-y-4">
+								<!-- 点赞按钮 -->
+								<div class="flex items-center gap-3">
+									<button 
+										@click="toggleDiaryLike" 
+										:disabled="!userId"
+										class="inline-flex items-center gap-2 px-4 py-2 rounded-lg border transition-colors"
+										:class="selectedDiary.is_liked ? 'bg-rose-50 border-rose-300 text-rose-600' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'">
+										<i class="bi" :class="selectedDiary.is_liked ? 'bi-heart-fill' : 'bi-heart'"></i>
+										<span class="font-medium">{{ selectedDiary.is_liked ? '已点赞' : '点赞' }}</span>
+										<span class="text-sm">{{ selectedDiary.like_count || 0 }}</span>
+									</button>
+									<span class="text-sm text-slate-400">
+										<i class="bi bi-chat-dots"></i> {{ (selectedDiary.comments || []).length }} 条评论
+									</span>
+								</div>
+
+								<!-- 评论列表 -->
+								<div class="space-y-3">
+									<p class="text-sm font-semibold text-slate-700">评论 ({{ (selectedDiary.comments || []).length }})</p>
+									<div v-if="(selectedDiary.comments || []).length === 0" class="text-center py-6 text-slate-400 text-sm">
+										<i class="bi bi-chat-left-text text-2xl mb-2 block"></i>
+										暂无评论，快来抢沙发！
+									</div>
+									<div v-else class="space-y-2 max-h-60 overflow-y-auto">
+										<div v-for="comment in selectedDiary.comments" :key="comment.comment_id" 
+											class="bg-white rounded-lg p-3 border border-slate-100">
+											<div class="flex items-start justify-between mb-1">
+												<span class="text-sm font-semibold text-slate-800">{{ comment.nickname || comment.username }}</span>
+												<span class="text-xs text-slate-400">{{ comment.created_at }}</span>
+											</div>
+											<p class="text-sm text-slate-600">{{ comment.content }}</p>
+										</div>
+									</div>
+								</div>
+
+								<!-- 添加评论 -->
+								<div class="flex gap-2">
+									<input 
+										v-model.trim="commentInput" 
+										type="text" 
+										:disabled="!userId"
+										placeholder="写下你的评论..."
+										@keyup.enter="submitComment"
+										class="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+									/>
+									<button 
+										@click="submitComment" 
+										:disabled="!userId || !commentInput || commenting"
+										class="px-4 py-2 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+										<span v-if="commenting" class="inline-flex items-center gap-1">
+											<span class="animate-spin w-3 h-3 border-2 border-white/40 border-t-transparent rounded-full"></span>
+											发送中
+										</span>
+										<span v-else>发送</span>
+									</button>
+								</div>
+							</div>
 						</div>
 					</div>
 				</div>
@@ -174,6 +234,7 @@
 <script>
 import BaseMap from '@/components/map/BaseMap.vue'
 import { fetchDiaries, fetchDiaryDetail, createDiary, deleteDiary as removeDiary } from '@/api/diary'
+import { fetchComments, toggleLike, addComment } from '@/api/community'
 import { fetchAllPlaces } from '@/api/place'
 import { me } from '@/api/auth'
 
@@ -188,6 +249,8 @@ export default {
 			selectedDiary: null,
 			submitting: false,
 			draftCoord: null,
+			commentInput: '',
+			commenting: false,
 			deleting: false,
 			form: {
 				title: '',
@@ -375,10 +438,12 @@ export default {
 		},
 		async selectDiary(d) {
 			this.selectedId = d.id
-			// 若需要获取更详细信息
+			// 获取详细信息
 			try {
 				const detail = await fetchDiaryDetail(d.id)
 				this.selectedDiary = detail || d
+				// 加载评论
+				await this.loadComments()
 			} catch (e) {
 				console.error('获取日记详情失败', e)
 				this.selectedDiary = d
@@ -421,6 +486,46 @@ export default {
 				console.error('删除日记失败', e)
 			} finally {
 				this.deleting = false
+			}
+		},
+		// 加载评论
+		async loadComments() {
+			if (!this.selectedDiary) return
+			try {
+				const comments = await fetchComments(this.selectedDiary.id)
+				this.selectedDiary.comments = comments
+			} catch (e) {
+				console.error('加载评论失败', e)
+				this.selectedDiary.comments = []
+			}
+		},
+		// 点赞/取消点赞
+		async toggleDiaryLike() {
+			if (!this.userId || !this.selectedDiary) return
+			try {
+				const result = await toggleLike(this.selectedDiary.id)
+				this.selectedDiary.like_count = result.likeCount
+				this.selectedDiary.is_liked = result.action === 'liked'
+			} catch (e) {
+				console.error('点赞操作失败', e)
+			}
+		},
+		// 提交评论
+		async submitComment() {
+			if (!this.userId || !this.selectedDiary || !this.commentInput) return
+			this.commenting = true
+			try {
+				const comment = await addComment(this.selectedDiary.id, this.commentInput)
+				// 添加到评论列表
+				if (!this.selectedDiary.comments) {
+					this.selectedDiary.comments = []
+				}
+				this.selectedDiary.comments.push(comment)
+				this.commentInput = ''
+			} catch (e) {
+				console.error('添加评论失败', e)
+			} finally {
+				this.commenting = false
 			}
 		}
 	}

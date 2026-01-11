@@ -34,12 +34,46 @@ const testBase =
   process.env.VUE_APP_API_BASE_URL_TEST ||
   (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:8080')
 
-const prodBase =
-  process.env.VUE_APP_API_BASE_URL_PROD ||
-  process.env.VUE_APP_API_BASE_URL ||
-  'http://localhost:5000'
+// 智能后端地址选择：
+// 1. 如果设置了环境变量，使用环境变量
+// 2. 如果从网络IP访问（非localhost），将后端地址中的localhost替换为当前主机名
+// 3. 否则使用默认的localhost:5000
+function getSmartProdBase() {
+  const envBase = process.env.VUE_APP_API_BASE_URL_PROD || process.env.VUE_APP_API_BASE_URL
+  
+  if (envBase) {
+    // 如果当前页面不是通过localhost访问的，替换后端地址中的localhost
+    if (typeof window !== 'undefined') {
+      const hostname = window.location.hostname
+      if (hostname !== 'localhost' && hostname !== '127.0.0.1') {
+        return envBase.replace('localhost', hostname).replace('127.0.0.1', hostname)
+      }
+    }
+    return envBase
+  }
+  
+  // 默认地址
+  if (typeof window !== 'undefined') {
+    const hostname = window.location.hostname
+    const port = '5000'
+    const protocol = window.location.protocol
+    return `${protocol}//${hostname}:${port}`
+  }
+  
+  return 'http://localhost:5000'
+}
+
+const prodBase = getSmartProdBase()
 
 const baseURL = FRONTEND_TEST ? testBase : prodBase
+
+// 调试日志：显示实际使用的API地址
+console.log('[API Config] FRONTEND_TEST:', FRONTEND_TEST)
+console.log('[API Config] Base URL:', baseURL)
+if (typeof window !== 'undefined') {
+  console.log('[API Config] Current Location:', window.location.href)
+  console.log('[API Config] Hostname:', window.location.hostname)
+}
 
 const api = axios.create({
   baseURL,

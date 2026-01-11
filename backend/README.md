@@ -27,7 +27,7 @@
 1) 创建并激活虚拟环境（可选）
 
 ```cmd
-cd /d c:\code\travel\backend
+cd backend
 python -m venv .venv
 .venv\Scripts\activate
 ```
