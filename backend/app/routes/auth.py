@@ -66,8 +66,32 @@ def login():
     # 设置会话（服务器端 session cookie）
     session['user_id'] = int(user_id)
     session['username'] = uname
+    
+    # 获取完整用户资料（包括个人信息和旅游偏好）
+    with conn.cursor() as cur:
+        cur.execute("""
+            SELECT user_id, username, email, age, occupation, bio, avatar,
+                   travel_persona, favorite_cities,
+                   created_at, updated_at
+            FROM users WHERE user_id=%s
+        """, (user_id,))
+        profile_row = cur.fetchone()
+    
+    user_data = {
+        'id': profile_row['user_id'],
+        'username': profile_row['username'],
+        'email': profile_row['email'],
+        'age': profile_row.get('age'),
+        'occupation': profile_row.get('occupation'),
+        'bio': profile_row.get('bio'),
+        'avatar': profile_row.get('avatar'),
+        'travel_persona': profile_row.get('travel_persona'),
+        'favorite_cities': profile_row.get('favorite_cities'),
+        'created_at': str(profile_row['created_at']) if profile_row.get('created_at') else None,
+        'updated_at': str(profile_row['updated_at']) if profile_row.get('updated_at') else None
+    }
 
-    return jsonify({'status': 'success', 'message': '登录成功', 'data': {'id': user_id, 'username': uname, 'email': email}})
+    return jsonify({'status': 'success', 'message': '登录成功', 'data': user_data})
 
 
 @auth_bp.route('/logout', methods=['POST'])
@@ -79,6 +103,7 @@ def logout():
 
 @auth_bp.route('/me', methods=['GET'])
 def me():
+    """获取当前登录用户的基本信息"""
     uid = session.get('user_id')
     if not uid:
         return jsonify({'status': 'error', 'message': '未登录'}), 401
@@ -87,7 +112,9 @@ def me():
     conn = get_db()
     with conn.cursor() as cur:
         cur.execute("""
-            SELECT user_id, username, email, created_at
+            SELECT user_id, username, email, age, occupation, bio, avatar,
+                   travel_persona, favorite_cities,
+                   created_at, updated_at
             FROM users WHERE user_id=%s
         """, (uid,))
         row = cur.fetchone()
@@ -99,8 +126,21 @@ def me():
         'id': row['user_id'],
         'username': row['username'],
         'email': row['email'],
-        'created_at': str(row['created_at']) if row['created_at'] else None
+        'age': row.get('age'),
+        'occupation': row.get('occupation'),
+        'bio': row.get('bio'),
+        'avatar': row.get('avatar'),
+        'travel_persona': row.get('travel_persona'),
+        'favorite_cities': row.get('favorite_cities'),
+        'created_at': str(row['created_at']) if row.get('created_at') else None,
+        'updated_at': str(row['updated_at']) if row.get('updated_at') else None
     }
+    
+    # 获取用户日记统计
+    with conn.cursor() as cur:
+        cur.execute("SELECT COUNT(*) as diary_count FROM diaries WHERE user_id=%s", (uid,))
+        stats = cur.fetchone()
+        user_data['diary_count'] = stats['diary_count'] if stats else 0
     
     return jsonify({'status': 'success', 'data': user_data})
 

@@ -1,3 +1,4 @@
+# /backend/app/routes/community.py
 ﻿# /backend/app/routes/community.py
 from flask import Blueprint, request, jsonify, session
 from app.utils.database import get_db

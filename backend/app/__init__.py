@@ -18,6 +18,15 @@ def create_app():
     # 确保JSON正确处理UTF-8中文
     app.config['JSON_AS_ASCII'] = False
     app.config['JSONIFY_MIMETYPE'] = 'application/json; charset=utf-8'
+    
+    # 配置 Session（用于登录状态保持）
+    app.config['SESSION_TYPE'] = 'filesystem'  # 使用文件系统存储 session
+    app.config['SESSION_PERMANENT'] = True  # session 持久化
+    app.config['PERMANENT_SESSION_LIFETIME'] = 86400 * 7  # session 有效期 7 天
+    app.config['SESSION_COOKIE_HTTPONLY'] = True  # 防止 XSS 攻击
+    app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # CSRF 保护
+    # 开发环境允许 HTTP，生产环境建议设为 True
+    app.config['SESSION_COOKIE_SECURE'] = False
 
     # 允许跨域请求，携带 Cookie 以保持登录状态
     # 支持 localhost 和局域网 IP 访问

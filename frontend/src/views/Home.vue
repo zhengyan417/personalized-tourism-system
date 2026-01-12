@@ -349,6 +349,162 @@
 				</button>
 			</div>
 		</div>
+
+		<!-- 路线结果弹窗 -->
+		<div 
+			v-if="showRouteResult" 
+			class="fixed inset-0 bg-black/50 backdrop-blur-sm z-[1000] flex items-center justify-center p-4"
+			@click.self="showRouteResult = false"
+		>
+			<div class="bg-white rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden animate-[slideUp_0.3s_ease-out]">
+				<!-- 弹窗头部 -->
+				<div class="px-6 py-5 bg-gradient-to-r from-brand-500 to-brand-600 text-white">
+					<div class="flex items-center justify-between">
+						<div>
+							<h2 class="text-2xl font-bold flex items-center gap-2">
+								<i class="bi bi-route"></i>
+								行程路线
+							</h2>
+							<p class="text-brand-100 text-sm mt-1">为您规划的最佳旅行路线</p>
+						</div>
+						<button 
+							@click="showRouteResult = false"
+							class="w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 transition-colors flex items-center justify-center"
+						>
+							<i class="bi bi-x-lg text-xl"></i>
+						</button>
+					</div>
+				</div>
+
+				<!-- 路线统计卡片 -->
+				<div class="px-6 py-4 bg-gradient-to-br from-brand-50 to-blue-50 border-b border-brand-100">
+					<div class="grid grid-cols-3 gap-4">
+						<div class="bg-white rounded-xl p-4 shadow-sm text-center">
+							<div class="text-3xl font-bold text-brand-600">{{ routeStats.points }}</div>
+							<div class="text-xs text-gray-500 mt-1">个站点</div>
+						</div>
+						<div class="bg-white rounded-xl p-4 shadow-sm text-center">
+							<div class="text-3xl font-bold text-brand-600">{{ routeStats.distanceLabel }}</div>
+							<div class="text-xs text-gray-500 mt-1">总里程 (km)</div>
+						</div>
+						<div class="bg-white rounded-xl p-4 shadow-sm text-center">
+							<div class="text-3xl font-bold text-brand-600">{{ estimatedTime }}</div>
+							<div class="text-xs text-gray-500 mt-1">预计耗时</div>
+						</div>
+					</div>
+				</div>
+
+				<!-- 路线时间线 -->
+				<div class="px-6 py-6 overflow-y-auto max-h-[calc(90vh-320px)]">
+					<h3 class="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+						<i class="bi bi-signpost-2"></i>
+						详细行程
+					</h3>
+					
+					<div class="space-y-6">
+						<div v-for="(point, index) in routeMarkers" :key="index" class="flex gap-4 relative">
+							<!-- 时间线 -->
+							<div class="flex flex-col items-center relative">
+								<!-- 站点序号 -->
+								<div class="relative z-10">
+									<div 
+										class="w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg shadow-lg"
+										:class="index === 0 ? 'bg-green-500 text-white' : index === routeMarkers.length - 1 ? 'bg-red-500 text-white' : 'bg-brand-500 text-white'"
+									>
+										{{ index + 1 }}
+									</div>
+									<!-- 起点/终点标签 -->
+									<div 
+										v-if="index === 0 || index === routeMarkers.length - 1"
+										class="absolute -bottom-5 left-1/2 transform -translate-x-1/2 whitespace-nowrap"
+									>
+										<span 
+											class="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+											:class="index === 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'"
+										>
+											{{ index === 0 ? '起点' : '终点' }}
+										</span>
+									</div>
+								</div>
+								
+								<!-- 连接线 -->
+								<div 
+									v-if="index < routeMarkers.length - 1" 
+									class="flex-1 w-1 bg-gradient-to-b from-brand-300 to-brand-200 my-2 min-h-[60px]"
+								></div>
+							</div>
+
+							<!-- 站点信息 -->
+							<div class="flex-1 pb-6">
+								<div class="bg-white rounded-xl border-2 border-gray-100 hover:border-brand-200 transition-all p-4 shadow-sm hover:shadow-md">
+									<!-- 站点名称 -->
+									<div class="flex items-start justify-between mb-2">
+										<div class="flex-1">
+											<h4 class="text-lg font-bold text-gray-900 flex items-center gap-2">
+												{{ point.label || `站点 ${index + 1}` }}
+												<span 
+													v-if="point.source" 
+													class="text-[10px] font-medium px-2 py-0.5 rounded-full"
+													:class="point.source === 'search' ? 'bg-blue-50 text-blue-600' : 'bg-gray-100 text-gray-600'"
+												>
+													{{ point.source === 'search' ? '搜索添加' : '地图选点' }}
+												</span>
+											</h4>
+											<p v-if="point.meta?.subtitle" class="text-sm text-gray-500 mt-1">
+												{{ point.meta.subtitle }}
+											</p>
+										</div>
+									</div>
+
+									<!-- 坐标信息 -->
+									<div class="flex items-center gap-2 text-xs text-gray-400 font-mono mb-3">
+										<i class="bi bi-geo-alt"></i>
+										<span>{{ point.latitude.toFixed(6) }}, {{ point.longitude.toFixed(6) }}</span>
+									</div>
+
+									<!-- 到下一站的距离 -->
+									<div v-if="index < routeMarkers.length - 1" class="mt-3 pt-3 border-t border-gray-100">
+										<div class="flex items-center gap-2 text-sm">
+											<i class="bi bi-arrow-down-circle text-brand-500"></i>
+											<span class="text-gray-600">到下一站</span>
+											<span class="ml-auto font-semibold text-brand-600">
+												{{ getSegmentDistance(index).toFixed(2) }} km
+											</span>
+											<span class="text-gray-400">·</span>
+											<span class="text-gray-500">约 {{ getSegmentTime(index) }}</span>
+										</div>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<!-- 弹窗底部：操作按钮 -->
+				<div class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex items-center justify-between gap-3">
+					<div class="flex items-center gap-2 text-xs text-gray-500">
+						<i class="bi bi-info-circle"></i>
+						<span>路线已在地图上展示</span>
+					</div>
+					<div class="flex items-center gap-2">
+						<button 
+							@click="exportRoute"
+							class="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100 transition-colors text-sm font-medium flex items-center gap-2"
+						>
+							<i class="bi bi-download"></i>
+							导出路线
+						</button>
+						<button 
+							@click="showRouteResult = false"
+							class="px-6 py-2 rounded-lg bg-brand-600 text-white hover:bg-brand-700 transition-colors text-sm font-medium flex items-center gap-2"
+						>
+							<i class="bi bi-check-circle"></i>
+							确定
+						</button>
+					</div>
+				</div>
+			</div>
+		</div>
 	</div>
 </template>
 
@@ -378,6 +534,7 @@ export default {
 			routeInfo: null,
 			planning: false,
 			optimizeMode: false, // false=顺序模式, true=优化模式
+			showRouteResult: false, // 路线结果弹窗
 			// 附近
 			place: { lat: 39.9042, lon: 116.4074, radius: 5, category: '', categories: [], list: [], loading: false },
 			// 推荐
@@ -417,6 +574,19 @@ export default {
 			const distanceText = distanceLabel === '--' ? '--' : `${distanceLabel} km`
 			return { points, segments, distanceValue, distanceLabel, distanceText }
 		},
+		// 预计时间（假设平均速度40km/h）
+		estimatedTime() {
+			const distance = this.routeStats.distanceValue
+			if (!Number.isFinite(distance) || distance <= 0) return '--'
+			const hours = distance / 40
+			if (hours < 1) {
+				return `${Math.round(hours * 60)}分钟`
+			} else {
+				const h = Math.floor(hours)
+				const m = Math.round((hours - h) * 60)
+				return m > 0 ? `${h}小时${m}分钟` : `${h}小时`
+			}
+		},
 		roadPathCoords() {
 			// 从 routeInfo 中提取道路路径坐标
 			if (!this.routeInfo) return []
@@ -431,6 +601,13 @@ export default {
 			// 初始将输入与中心同步
 			this.place.lat = this.mapCenter[0]; this.place.lon = this.mapCenter[1]
 			await Promise.all([this.loadNearby(), this.refreshRecommend()])
+		
+		// 监听来自AI助手的路线导入事件
+		window.addEventListener('import-ai-route', this.handleImportAIRoute);
+	},
+	beforeUnmount() {
+		// 清理事件监听
+		window.removeEventListener('import-ai-route', this.handleImportAIRoute);
 	},
 	methods: {
 		goLogin() {
@@ -576,7 +753,75 @@ export default {
 				// 调用多点路径规划API
 				const info = await planSimple(start, end, waypoints)
 				this.routeInfo = info
-			} catch (e) { console.error('路线计算失败', e); this.routeInfo = null } finally { this.planning = false }
+				
+				// 路线计算成功后显示结果弹窗
+				if (info) {
+					this.showRouteResult = true
+				}
+			} catch (e) { 
+				console.error('路线计算失败', e)
+				this.routeInfo = null 
+			} finally { 
+				this.planning = false 
+			}
+		},
+		// 获取两个站点之间的距离
+		getSegmentDistance(index) {
+			if (index >= this.routeMarkers.length - 1) return 0
+			const p1 = this.routeMarkers[index]
+			const p2 = this.routeMarkers[index + 1]
+			return this.calculateDistance(p1.latitude, p1.longitude, p2.latitude, p2.longitude)
+		},
+		// 获取段落预计时间
+		getSegmentTime(index) {
+			const distance = this.getSegmentDistance(index)
+			if (distance === 0) return '--'
+			const hours = distance / 40 // 假设平均速度40km/h
+			const minutes = Math.round(hours * 60)
+			if (minutes < 60) {
+				return `${minutes}分钟`
+			} else {
+				const h = Math.floor(minutes / 60)
+				const m = minutes % 60
+				return m > 0 ? `${h}小时${m}分钟` : `${h}小时`
+			}
+		},
+		// 导出路线
+		exportRoute() {
+			if (this.routeMarkers.length < 2) return
+			
+			// 构建导出数据
+			const data = {
+				title: '旅行路线',
+				created_at: new Date().toISOString(),
+				total_distance: this.routeStats.distanceLabel + ' km',
+				estimated_time: this.estimatedTime,
+				points: this.routeMarkers.map((p, i) => ({
+					sequence: i + 1,
+					name: p.label || `站点 ${i + 1}`,
+					latitude: p.latitude,
+					longitude: p.longitude,
+					source: p.source,
+					distance_to_next: i < this.routeMarkers.length - 1 ? this.getSegmentDistance(i).toFixed(2) + ' km' : null
+				}))
+			}
+			
+			// 转换为JSON字符串
+			const json = JSON.stringify(data, null, 2)
+			
+			// 创建下载链接
+			const blob = new Blob([json], { type: 'application/json' })
+			const url = URL.createObjectURL(blob)
+			const a = document.createElement('a')
+			a.href = url
+			a.download = `旅行路线_${new Date().getTime()}.json`
+			document.body.appendChild(a)
+			a.click()
+			document.body.removeChild(a)
+			URL.revokeObjectURL(url)
+			
+			// 提示用户
+			alert('路线已导出!')
 		},
 		// 来自 BaseMap 的事件
 		// route-point-add
@@ -635,7 +880,130 @@ export default {
 			} finally {
 				this.routeSearch.loading = false
 			}
+		},
+		/**
+		 * 处理从AI助手导入路线的请求
+		 */
+		async handleImportAIRoute(event) {
+			const { attractions } = event.detail;
+			
+			if (!attractions || attractions.length === 0) {
+				alert('没有可导入的景点');
+				return;
+			}
+			
+			console.log('[Home] 开始导入AI推荐的景点:', attractions);
+			
+			// 显示加载状态
+			this.planning = true;
+			
+			try {
+				// 动态导入API方法
+				const { searchAttractions } = await import('@/api/place');
+				
+				// 批量查询景点坐标
+				const results = await searchAttractions(attractions);
+				
+				console.log('[Home] 查询到的景点信息:', results);
+				
+				if (results.length === 0) {
+					alert('未能找到任何景点的坐标信息，请尝试更具体的景点名称');
+					return;
+				}
+				
+				// 清空现有路线
+				this.routeMarkers = [];
+				
+				// 将查询到的景点添加到路线
+				for (const attraction of results) {
+					this.routeMarkers.push({
+						latitude: attraction.latitude,
+						longitude: attraction.longitude,
+						label: attraction.name,
+						source: 'ai',
+						meta: {
+							subtitle: attraction.description || attraction.category,
+							category: attraction.category
+						}
+					});
+				}
+				
+			// 切换到路径规划标签
+			this.activeTab = 'route';
+			
+			// 定位到第一个景点
+			if (results.length > 0) {
+				this.mapCenter = [results[0].latitude, results[0].longitude];
+			}
+			
+			// 等待UI更新后计算路线
+			await this.$nextTick();
+			
+			// 自动计算路线
+			if (this.routeMarkers.length >= 2) {
+				await this.planSimpleRoute();
+				
+				// 显示成功消息
+				const missed = attractions.length - results.length;
+				const msg = missed > 0 
+					? `✅ 成功导入 ${results.length} 个景点并规划路线！\n⚠️ ${missed} 个景点未找到坐标`
+					: `✅ 成功导入 ${results.length} 个景点并规划路线！`;
+				alert(msg);
+			} else if (results.length === 1) {
+				alert(`✅ 导入了 1 个景点，至少需要 2 个景点才能规划路线`);
+			}
+			
+			console.log(`[Home] 导入完成: ${results.length}/${attractions.length} 个景点`);
+				
+			} catch (error) {
+				console.error('[Home] 导入AI路线失败:', error);
+				alert('导入失败：' + error.message);
+			} finally {
+				this.planning = false;
+			}
 		}
 	}
 }
 </script>
+
+<style scoped>
+@keyframes slideUp {
+	from {
+		opacity: 0;
+		transform: translateY(20px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+/* 加载动画 */
+@keyframes spin {
+	to {
+		transform: rotate(360deg);
+	}
+}
+
+.animate-spin {
+	animation: spin 1s linear infinite;
+}
+
+/* 自定义滚动条 */
+.overflow-y-auto::-webkit-scrollbar {
+	width: 6px;
+}
+
+.overflow-y-auto::-webkit-scrollbar-track {
+	background: #f1f1f1;
+}
+
+.overflow-y-auto::-webkit-scrollbar-thumb {
+	background: #cbd5e1;
+	border-radius: 3px;
+}
+
+.overflow-y-auto::-webkit-scrollbar-thumb:hover {
+	background: #94a3b8;
+}
+</style>

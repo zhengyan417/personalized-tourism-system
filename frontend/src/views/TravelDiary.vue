@@ -1,5 +1,18 @@
 <template>
 	<div class="min-h-[calc(100vh-64px)] bg-slate-50 py-8 px-4 lg:px-8">
+		<!-- 面包屑导航 -->
+		<div class="max-w-7xl mx-auto mb-4">
+			<div class="flex items-center gap-2 text-sm text-slate-500">
+				<router-link to="/community" class="hover:text-brand-500 transition-colors no-underline">
+					<i class="bi bi-people mr-1"></i>旅行社区
+				</router-link>
+				<i class="bi bi-chevron-right text-xs"></i>
+				<span class="text-slate-900 font-medium">
+					<i class="bi bi-journal-text mr-1"></i>我的日记
+				</span>
+			</div>
+		</div>
+
 		<div class="max-w-7xl mx-auto space-y-6">
 			<div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
 				<!-- 左侧：地图 + 日记信息 -->

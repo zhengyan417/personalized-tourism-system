@@ -4,6 +4,7 @@ import Home from '../views/Home.vue'
 import PlaceQuery from '../views/PlaceQuery.vue'
 import Recommendation from '../views/Recommendation.vue'
 import RoutePlanning from '../views/RoutePlanning.vue'
+import Community from '../views/Community.vue'
 import TravelDiary from '../views/TravelDiary.vue'
 import Login from '../views/Login.vue'
 import UserProfile from '../views/UserProfile.vue'
@@ -13,6 +14,7 @@ const routes = [
 	{ path: '/place', name: 'PlaceQuery', component: PlaceQuery },
 	{ path: '/recommendation', name: 'Recommendation', component: Recommendation },
 	{ path: '/route', name: 'RoutePlanning', component: RoutePlanning },
+	{ path: '/community', name: 'Community', component: Community },
 	{ path: '/diary', name: 'TravelDiary', component: TravelDiary },
 	{ path: '/login', name: 'Login', component: Login },
 	{ path: '/profile', name: 'UserProfile', component: UserProfile }

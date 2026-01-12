@@ -55,11 +55,24 @@
           <div class="shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-white text-xs shadow-sm" :class="msg.role === 'user' ? 'bg-gray-400' : 'bg-brand-600'">
             <i class="bi" :class="msg.role === 'user' ? 'bi-person-fill' : 'bi-robot'"></i>
           </div>
-          <div 
-            class="p-3 rounded-2xl text-sm shadow-sm max-w-[80%]" 
-            :class="msg.role === 'user' ? 'bg-brand-600 text-white rounded-tr-none' : 'bg-white text-gray-700 border border-gray-100 rounded-tl-none'"
-          >
-            <div class="whitespace-pre-wrap break-words">{{ msg.content }}</div>
+          <div class="flex flex-col gap-2 max-w-[80%]">
+            <div 
+              class="p-3 rounded-2xl text-sm shadow-sm" 
+              :class="msg.role === 'user' ? 'bg-brand-600 text-white rounded-tr-none' : 'bg-white text-gray-700 border border-gray-100 rounded-tl-none'"
+            >
+              <div class="whitespace-pre-wrap break-words">{{ msg.content }}</div>
+            </div>
+            <!-- AI消息的操作按钮 -->
+            <div v-if="msg.role === 'assistant' && msg.content && !isLoading" class="flex gap-2 px-1">
+              <button 
+                @click="applyToRoutePlanning(msg.content)"
+                class="text-xs bg-gradient-to-r from-brand-500 to-blue-500 text-white px-3 py-1.5 rounded-lg hover:from-brand-600 hover:to-blue-600 transition-all flex items-center gap-1 shadow-sm font-medium"
+                title="将AI推荐的景点应用到路径规划"
+              >
+                <i class="bi bi-map"></i>
+                <span>应用到路径规划</span>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -137,7 +150,40 @@ export default {
       };
     }
   },
+  mounted() {
+    // 监听来自个人资料页面的打开AI助手事件
+    window.addEventListener('open-ai-assistant', this.handleOpenAIEvent);
+  },
+  beforeUnmount() {
+    // 清理事件监听
+    window.removeEventListener('open-ai-assistant', this.handleOpenAIEvent);
+  },
   methods: {
+    handleOpenAIEvent(event) {
+      const { message, autoSend } = event.detail;
+      
+      // 打开AI助手
+      if (!this.isOpen) {
+        this.isOpen = true;
+      }
+      
+      // 设置消息
+      if (message) {
+        this.inputMessage = message;
+        
+        // 如果设置了自动发送，则发送消息
+        if (autoSend) {
+          this.$nextTick(() => {
+            this.sendMessage();
+          });
+        }
+      }
+      
+      // 滚动到底部
+      this.$nextTick(() => {
+        this.scrollToBottom();
+      });
+    },
     startDrag(e) {
       // 如果点击的是关闭按钮或聊天窗口内部，不触发拖拽
       if (e.target.closest('.ai-chat-window') || e.target.closest('.btn-close')) return;
@@ -218,6 +264,12 @@ export default {
       this.isLoading = true;
       this.scrollToBottom();
 
+      // 调试信息：打印发送的用户资料
+      console.log('[AiAssistant] 发送消息给AI');
+      console.log('用户ID:', this.userId);
+      console.log('用户资料:', this.userProfile);
+      console.log('消息内容:', text.substring(0, 100) + (text.length > 100 ? '...' : ''));
+
       // 准备接收 AI 回复
       let botMsgIndex = this.messages.push({ role: 'assistant', content: '' }) - 1;
 
@@ -245,6 +297,105 @@ export default {
       if (container) {
         container.scrollTop = container.scrollHeight;
       }
+    },
+    /**
+     * 将AI推荐的景点应用到路径规划
+     */
+    async applyToRoutePlanning(aiMessage) {
+      console.log('[AI Assistant] 开始提取景点信息');
+      
+      // 1. 从AI消息中提取景点名称
+      const attractions = this.extractAttractions(aiMessage);
+      
+      if (attractions.length === 0) {
+        alert('未能从AI回复中识别出景点信息。请尝试询问AI推荐具体的景点。');
+        return;
+      }
+      
+      console.log('[AI Assistant] 提取到景点:', attractions);
+      
+      // 2. 触发全局事件，通知Home组件导入路线
+      window.dispatchEvent(new CustomEvent('import-ai-route', {
+        detail: {
+          attractions: attractions,
+          source: 'ai'
+        }
+      }));
+      
+      // 3. 不再在AI助手中显示提示，由Home组件统一处理
+      console.log('[AI Assistant] 已发送导入事件到Home组件');
+    },
+    /**
+     * 从AI消息中提取景点名称
+     * 使用多种模式匹配景点信息
+     */
+    extractAttractions(text) {
+      const attractions = [];
+      const seen = new Set();
+      const PLACE_SUFFIX = '(?:公园|寺|庙|塔|楼|阁|宫|殿|馆|院|山|湖|江|河|桥|城|镇|村|巷|街|胡同|广场|景区|风景区|遗址|陵|墓|故居|纪念馆|博物馆|展览馆|大道|老街|古镇|古城|步行街|大道|港|湾|峡|泉|池|谷)';
+      const knownAttractions = new Set(['故宫', '天安门', '天安门广场', '长城', '八达岭长城', '颐和园', '圆明园', '北海', '北海公园', '景山', '景山公园', '天坛', '雍和宫', '什刹海', '南锣鼓巷', '王府井', '明十三陵']);
+
+      const normalizeName = (raw) => raw
+        .replace(/[“”"《》【】]/g, '')
+        .replace(/（.*?）/g, '')
+        .replace(/[，。,.;；\s]+$/g, '')
+        .replace(/^[-•\*\d\.\s]+/, '')
+        .trim();
+
+      const tryAdd = (raw) => {
+        const name = normalizeName(raw);
+        if (!name || seen.has(name)) return;
+        if (name.length < 2 || name.length > 20) return;
+        if (new RegExp(PLACE_SUFFIX + '$').test(name) || knownAttractions.has(name)) {
+          attractions.push(name);
+          seen.add(name);
+        }
+      };
+
+      const lines = text.split(/\r?\n+/).map(line => line.trim()).filter(Boolean);
+      const dayPrefix = /^第([一二三四五六七八九十百零\d]+)(天|日)/;
+      const timeRange = /^\d{1,2}:\d{2}\s*[-~到]\s*\d{1,2}:\d{2}\s*(.+)$/;
+
+      for (const line of lines) {
+        if (dayPrefix.test(line)) continue;
+        const timeMatch = line.match(timeRange);
+        if (timeMatch) {
+          tryAdd(timeMatch[1]);
+          continue;
+        }
+        const colonMatch = line.match(/^[^：:]+[：:]\s*(.+)$/);
+        if (colonMatch) {
+          tryAdd(colonMatch[1]);
+          continue;
+        }
+        if (new RegExp(`^.{2,20}?${PLACE_SUFFIX}$`).test(line)) {
+          tryAdd(line);
+        }
+      }
+
+      let match;
+      const pattern1 = new RegExp(`[：:]\\s*([^：:\\n,，。]+?${PLACE_SUFFIX})`, 'g');
+      while ((match = pattern1.exec(text)) !== null) {
+        tryAdd(match[1]);
+      }
+
+      const pattern2 = new RegExp(`[-•\\*]\\s*([^-•\\*\\n,，。]{2,20}?${PLACE_SUFFIX})`, 'g');
+      while ((match = pattern2.exec(text)) !== null) {
+        tryAdd(match[1]);
+      }
+
+      const pattern3 = new RegExp(`(?:前往|游览|参观|访问)\\s*([^。，,\\n]{2,20}?${PLACE_SUFFIX})`, 'g');
+      while ((match = pattern3.exec(text)) !== null) {
+        tryAdd(match[1]);
+      }
+
+      knownAttractions.forEach(attr => {
+        if (text.includes(attr)) {
+          tryAdd(attr);
+        }
+      });
+
+      return attractions.slice(0, 15);
     }
   }
 };
