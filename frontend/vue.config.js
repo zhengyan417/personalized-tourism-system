@@ -65,6 +65,8 @@ const mockDB = {
 /** @type {import('@vue/cli-service').ProjectOptions} */
 module.exports = {
 	devServer: {
+		host: '0.0.0.0',  // 允许从网络IP访问
+		port: 8080,
 		setupMiddlewares(middlewares, devServer) {
 			const useMock = process.env.VUE_APP_USE_MOCK === 'true'
 			if (!useMock) {

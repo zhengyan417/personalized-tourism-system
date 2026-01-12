@@ -73,6 +73,7 @@ export async function sendCozeMessage(query, userId, userProfile, onChunk, onErr
         if (line.startsWith('event:')) {
             const eventType = line.slice(6).trim();
             console.log('[Coze] Event:', eventType);
+            // event type - 忽略
         } else if (line.startsWith('data:')) {
             const dataStr = line.slice(5).trim();
             if (!dataStr) continue;
@@ -107,6 +108,16 @@ export async function sendCozeMessage(query, userId, userProfile, onChunk, onErr
                    messageCount++;
                    onChunk(data.data.content);
                    continue; // 🔧 处理完后跳过后续判断
+                // Coze v3 stream events
+                if (data.type === 'answer') {
+                   onChunk(data.content);
+                } else if (data.event === 'conversation.message.delta') {
+                   if (data.data && data.data.content) {
+                       onChunk(data.data.content);
+                   }
+                } else if (data.content) {
+                   // 兜底：如果有content字段就显示
+                   onChunk(data.content);
                 }
                 
                 // 跳过 completed 事件（避免重复，delta 已经包含了所有内容）
@@ -127,6 +138,7 @@ export async function sendCozeMessage(query, userId, userProfile, onChunk, onErr
                 console.log('[Coze] ❌ 跳过消息 - type:', data.type, 'event:', data.event, 'hasContent:', !!data.content);
             } catch (e) {
                 console.warn('[Coze] Parse error:', e, '原始数据:', dataStr.substring(0, 100));
+                console.warn('[Coze] Parse error:', e);
             }
         }
       }
