@@ -32,3 +32,36 @@ export async function fetchCategories() {
 	}
 }
 
+// 根据名称搜索景点
+export async function searchAttractionByName(name) {
+	try {
+		const { data } = await api.get('/api/attractions/search', {
+			params: { name: name }
+		})
+		if (data?.status === 'success' && Array.isArray(data.data) && data.data.length > 0) {
+			return data.data[0] // 返回第一个匹配结果
+		}
+	} catch (e) {
+		console.warn('[searchAttractionByName] error', name, e.message)
+	}
+	return null
+}
+
+// 批量搜索景点
+export async function searchAttractions(names) {
+	const results = []
+	for (const name of names) {
+		const attraction = await searchAttractionByName(name)
+		if (attraction) {
+			results.push({
+				name: attraction.name,
+				latitude: attraction.latitude,
+				longitude: attraction.longitude,
+				category: attraction.type || attraction.category,
+				description: attraction.description || attraction.facilities || '',
+				source: 'ai'
+			})
+		}
+	}
+	return results
+}

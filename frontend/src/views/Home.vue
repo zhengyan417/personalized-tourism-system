@@ -2,20 +2,18 @@
 	<div class="h-[calc(100vh-64px)] flex flex-col md:flex-row bg-gray-50 relative">
 		<!-- 左侧功能面板 -->
 		<div class="w-full md:w-[400px] bg-white border-r border-gray-200 flex flex-col shadow-xl z-20 h-full">
-			<!-- 顶部 Tab 切换 -->
-			<div class="flex border-b border-gray-100 bg-white shrink-0">
-				<button 
-					v-for="tab in tabs" 
-					:key="tab.id"
-					@click="switchTab(tab.id)"
-					class="flex-1 py-3 text-sm font-semibold flex items-center justify-center gap-2 transition-colors"
-					:class="activeTab === tab.id ? 'text-brand-600 border-b-2 border-brand-500 bg-brand-50/50' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'"
-				>
-					<i :class="tab.icon"></i> {{ tab.name }}
-				</button>
-			</div>
-
-			<!-- 内容区域 -->
+		<!-- 顶部 Tab 切换 -->
+		<div class="flex border-b border-gray-100 bg-white shrink-0">
+			<button 
+				v-for="tab in tabs" 
+				:key="tab.id"
+				@click="switchTab(tab.id)"
+				class="flex-1 py-3 text-sm font-semibold flex items-center justify-center gap-2 transition-colors"
+				:class="activeTab === tab.id ? 'text-brand-600 border-b-2 border-brand-500 bg-brand-50/50' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'"
+			>
+				<i :class="tab.icon"></i> {{ tab.name }}
+			</button>
+		</div>			<!-- 内容区域 -->
 			<div class="flex-1 overflow-y-auto bg-gray-50/50 p-4">
 				<!-- 附近 -->
 				<div v-if="activeTab==='place'" class="space-y-4">
@@ -160,7 +158,7 @@
 									<p class="text-3xl font-semibold">{{ routeStats.distanceText }}</p>
 								</div>
 							</div>
-							<p class="text-xs text-white/80">提示：点击地图即可添加站点，建议不少于两个坐标点以获取完整线路。</p>
+							<p class="text-xs text-white/80">提示：点击地图添加站点，使用下方的模式切换开关选择"顺序访问"或"智能优化"模式。</p>
 						</div>
 					</div>
 
@@ -214,6 +212,31 @@
 							<h4 class="text-base font-semibold text-gray-900">标记路线</h4>
 							<p class="text-sm text-gray-500">在左侧地图选择旅程关键节点，也可以手动撤销、反转或清空。</p>
 						</div>
+						
+						<!-- 路径规划模式选择 -->
+						<div class="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-3 border border-blue-100">
+							<div class="flex items-center justify-between mb-2">
+								<label class="text-sm font-semibold text-gray-700">路径规划模式</label>
+								<button 
+									@click="optimizeMode = !optimizeMode"
+									class="px-3 py-1 rounded-lg text-xs font-bold transition-all"
+									:class="optimizeMode ? 'bg-amber-500 text-white shadow-md' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'"
+								>
+									{{ optimizeMode ? '智能优化' : '顺序访问' }}
+								</button>
+							</div>
+							<p class="text-xs text-gray-600">
+								<span v-if="optimizeMode">
+									<i class="bi bi-stars text-amber-500"></i> 
+									<strong>智能优化模式：</strong>系统会自动计算最优访问顺序，第一个点为起点，其余点按最短路径排序
+								</span>
+								<span v-else>
+									<i class="bi bi-list-ol text-blue-500"></i> 
+									<strong>顺序访问模式：</strong>严格按照您添加点的顺序进行路径规划
+								</span>
+							</p>
+						</div>
+						
 						<div class="flex flex-wrap gap-2">
 							<button class="flex-1 min-w-[180px] py-2.5 rounded-xl text-sm font-semibold transition-colors flex items-center justify-center gap-2"
 								:class="routeMode ? 'bg-rose-50 text-rose-600 border border-rose-200 hover:bg-rose-100' : 'bg-brand-600 text-white hover:bg-brand-700'"
@@ -294,56 +317,6 @@
 						</div>
 					</div>
 				</div>
-
-				<!-- 日记 -->
-				<div v-else-if="activeTab==='diary'" class="space-y-4">
-					<div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 space-y-3">
-						<div>
-							<label class="block text-xs font-medium text-gray-500 mb-1">标题</label>
-							<input v-model.trim="diary.form.title" type="text" class="w-full rounded-lg border-gray-200 text-sm focus:ring-brand-500 focus:border-brand-500" placeholder="给日记起个标题..." />
-						</div>
-						<div>
-							<label class="block text-xs font-medium text-gray-500 mb-1">内容</label>
-							<textarea v-model.trim="diary.form.content" rows="3" class="w-full rounded-lg border-gray-200 text-sm focus:ring-brand-500 focus:border-brand-500 resize-none" placeholder="记录此刻的心情与见闻..."></textarea>
-						</div>
-						<div class="grid grid-cols-2 gap-3">
-							<div>
-								<label class="block text-xs font-medium text-gray-500 mb-1">纬度</label>
-								<input v-model.number="diary.form.latitude" type="number" step="0.000001" class="w-full rounded-lg border-gray-200 text-xs bg-gray-50" readonly />
-							</div>
-							<div>
-								<label class="block text-xs font-medium text-gray-500 mb-1">经度</label>
-								<input v-model.number="diary.form.longitude" type="number" step="0.000001" class="w-full rounded-lg border-gray-200 text-xs bg-gray-50" readonly />
-							</div>
-						</div>
-						<div class="flex gap-2 pt-1">
-							<button class="px-3 py-1.5 border border-gray-200 rounded-lg text-xs text-gray-600 hover:bg-gray-50" @click="locate">
-								<i class="bi bi-geo-alt"></i> 获取位置
-							</button>
-							<button class="flex-1 bg-brand-600 text-white py-1.5 rounded-lg text-xs font-medium hover:bg-brand-700 transition-colors flex items-center justify-center gap-2" :disabled="diary.submitting" @click="submitDiary">
-								<span v-if="diary.submitting" class="spinner-border spinner-border-sm w-3 h-3"></span>
-								<i class="bi bi-send"></i> 发布日记
-							</button>
-						</div>
-					</div>
-
-					<div class="space-y-2">
-						<div v-if="diary.list.length===0" class="text-center py-8 text-gray-400">
-							<i class="bi bi-journal-album text-4xl mb-2 block"></i>
-							<p class="text-sm">暂无日记，开始记录吧！</p>
-						</div>
-						<button v-for="d in diary.list" :key="d.id" 
-							class="w-full text-left bg-white p-3 rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all group"
-							:class="{ 'ring-2 ring-brand-500 border-transparent': selectedId === d.id }"
-							@click="selectDiary(d)">
-							<div class="flex justify-between items-start mb-1">
-								<h4 class="font-bold text-gray-800 group-hover:text-brand-600 transition-colors line-clamp-1">{{ d.title }}</h4>
-								<span class="text-[10px] text-gray-400 whitespace-nowrap">{{ d.date }}</span>
-							</div>
-							<p class="text-xs text-gray-500 line-clamp-2">{{ d.snippet || d.content }}</p>
-						</button>
-					</div>
-				</div>
 			</div>
 		</div>
 
@@ -359,6 +332,7 @@
 				:selected-id="selectedId"
 				:route-mode="activeTab === 'route' && routeMode"
 				:route-markers="routeMarkers"
+				:road-path="roadPathCoords"
 				@marker-click="onMarkerClick"
 				@location-update="onLocationUpdate"
 				@route-point-add="onRoutePointAdd"
@@ -375,6 +349,162 @@
 				</button>
 			</div>
 		</div>
+
+		<!-- 路线结果弹窗 -->
+		<div 
+			v-if="showRouteResult" 
+			class="fixed inset-0 bg-black/50 backdrop-blur-sm z-[1000] flex items-center justify-center p-4"
+			@click.self="showRouteResult = false"
+		>
+			<div class="bg-white rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden animate-[slideUp_0.3s_ease-out]">
+				<!-- 弹窗头部 -->
+				<div class="px-6 py-5 bg-gradient-to-r from-brand-500 to-brand-600 text-white">
+					<div class="flex items-center justify-between">
+						<div>
+							<h2 class="text-2xl font-bold flex items-center gap-2">
+								<i class="bi bi-route"></i>
+								行程路线
+							</h2>
+							<p class="text-brand-100 text-sm mt-1">为您规划的最佳旅行路线</p>
+						</div>
+						<button 
+							@click="showRouteResult = false"
+							class="w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 transition-colors flex items-center justify-center"
+						>
+							<i class="bi bi-x-lg text-xl"></i>
+						</button>
+					</div>
+				</div>
+
+				<!-- 路线统计卡片 -->
+				<div class="px-6 py-4 bg-gradient-to-br from-brand-50 to-blue-50 border-b border-brand-100">
+					<div class="grid grid-cols-3 gap-4">
+						<div class="bg-white rounded-xl p-4 shadow-sm text-center">
+							<div class="text-3xl font-bold text-brand-600">{{ routeStats.points }}</div>
+							<div class="text-xs text-gray-500 mt-1">个站点</div>
+						</div>
+						<div class="bg-white rounded-xl p-4 shadow-sm text-center">
+							<div class="text-3xl font-bold text-brand-600">{{ routeStats.distanceLabel }}</div>
+							<div class="text-xs text-gray-500 mt-1">总里程 (km)</div>
+						</div>
+						<div class="bg-white rounded-xl p-4 shadow-sm text-center">
+							<div class="text-3xl font-bold text-brand-600">{{ estimatedTime }}</div>
+							<div class="text-xs text-gray-500 mt-1">预计耗时</div>
+						</div>
+					</div>
+				</div>
+
+				<!-- 路线时间线 -->
+				<div class="px-6 py-6 overflow-y-auto max-h-[calc(90vh-320px)]">
+					<h3 class="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+						<i class="bi bi-signpost-2"></i>
+						详细行程
+					</h3>
+					
+					<div class="space-y-6">
+						<div v-for="(point, index) in routeMarkers" :key="index" class="flex gap-4 relative">
+							<!-- 时间线 -->
+							<div class="flex flex-col items-center relative">
+								<!-- 站点序号 -->
+								<div class="relative z-10">
+									<div 
+										class="w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg shadow-lg"
+										:class="index === 0 ? 'bg-green-500 text-white' : index === routeMarkers.length - 1 ? 'bg-red-500 text-white' : 'bg-brand-500 text-white'"
+									>
+										{{ index + 1 }}
+									</div>
+									<!-- 起点/终点标签 -->
+									<div 
+										v-if="index === 0 || index === routeMarkers.length - 1"
+										class="absolute -bottom-5 left-1/2 transform -translate-x-1/2 whitespace-nowrap"
+									>
+										<span 
+											class="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+											:class="index === 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'"
+										>
+											{{ index === 0 ? '起点' : '终点' }}
+										</span>
+									</div>
+								</div>
+								
+								<!-- 连接线 -->
+								<div 
+									v-if="index < routeMarkers.length - 1" 
+									class="flex-1 w-1 bg-gradient-to-b from-brand-300 to-brand-200 my-2 min-h-[60px]"
+								></div>
+							</div>
+
+							<!-- 站点信息 -->
+							<div class="flex-1 pb-6">
+								<div class="bg-white rounded-xl border-2 border-gray-100 hover:border-brand-200 transition-all p-4 shadow-sm hover:shadow-md">
+									<!-- 站点名称 -->
+									<div class="flex items-start justify-between mb-2">
+										<div class="flex-1">
+											<h4 class="text-lg font-bold text-gray-900 flex items-center gap-2">
+												{{ point.label || `站点 ${index + 1}` }}
+												<span 
+													v-if="point.source" 
+													class="text-[10px] font-medium px-2 py-0.5 rounded-full"
+													:class="point.source === 'search' ? 'bg-blue-50 text-blue-600' : 'bg-gray-100 text-gray-600'"
+												>
+													{{ point.source === 'search' ? '搜索添加' : '地图选点' }}
+												</span>
+											</h4>
+											<p v-if="point.meta?.subtitle" class="text-sm text-gray-500 mt-1">
+												{{ point.meta.subtitle }}
+											</p>
+										</div>
+									</div>
+
+									<!-- 坐标信息 -->
+									<div class="flex items-center gap-2 text-xs text-gray-400 font-mono mb-3">
+										<i class="bi bi-geo-alt"></i>
+										<span>{{ point.latitude.toFixed(6) }}, {{ point.longitude.toFixed(6) }}</span>
+									</div>
+
+									<!-- 到下一站的距离 -->
+									<div v-if="index < routeMarkers.length - 1" class="mt-3 pt-3 border-t border-gray-100">
+										<div class="flex items-center gap-2 text-sm">
+											<i class="bi bi-arrow-down-circle text-brand-500"></i>
+											<span class="text-gray-600">到下一站</span>
+											<span class="ml-auto font-semibold text-brand-600">
+												{{ getSegmentDistance(index).toFixed(2) }} km
+											</span>
+											<span class="text-gray-400">·</span>
+											<span class="text-gray-500">约 {{ getSegmentTime(index) }}</span>
+										</div>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<!-- 弹窗底部：操作按钮 -->
+				<div class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex items-center justify-between gap-3">
+					<div class="flex items-center gap-2 text-xs text-gray-500">
+						<i class="bi bi-info-circle"></i>
+						<span>路线已在地图上展示</span>
+					</div>
+					<div class="flex items-center gap-2">
+						<button 
+							@click="exportRoute"
+							class="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100 transition-colors text-sm font-medium flex items-center gap-2"
+						>
+							<i class="bi bi-download"></i>
+							导出路线
+						</button>
+						<button 
+							@click="showRouteResult = false"
+							class="px-6 py-2 rounded-lg bg-brand-600 text-white hover:bg-brand-700 transition-colors text-sm font-medium flex items-center gap-2"
+						>
+							<i class="bi bi-check-circle"></i>
+							确定
+						</button>
+					</div>
+				</div>
+			</div>
+		</div>
 	</div>
 </template>
 
@@ -383,7 +513,6 @@ import BaseMap from '../components/map/BaseMap.vue'
 import { fetchNearbyPlaces, fetchCategories } from '../api/place'
 import { fetchRecommendations, searchRecommendations } from '../api/recommendation'
 import { planSimple } from '../api/route'
-import { fetchDiaries, fetchDiaryDetail, createDiary } from '../api/diary'
 import { searchPlaces } from '../api/geocode'
 
 export default {
@@ -394,8 +523,7 @@ export default {
 			tabs: [
 				{ id: 'place', name: '附近', icon: 'bi-geo-alt' },
 				{ id: 'recommend', name: '推荐', icon: 'bi-stars' },
-				{ id: 'route', name: '路径', icon: 'bi-sign-turn-right' },
-				{ id: 'diary', name: '日记', icon: 'bi-journal-text' }
+				{ id: 'route', name: '路径', icon: 'bi-sign-turn-right' }
 			],
 			activeTab: 'place',
 			mapCenter: [39.9042, 116.4074],
@@ -405,12 +533,12 @@ export default {
 			routeMarkers: [],
 			routeInfo: null,
 			planning: false,
+			optimizeMode: false, // false=顺序模式, true=优化模式
+			showRouteResult: false, // 路线结果弹窗
 			// 附近
 			place: { lat: 39.9042, lon: 116.4074, radius: 5, category: '', categories: [], list: [], loading: false },
 			// 推荐
 			recommend: { query: '', list: [], loading: false, showAdv: false, categories: ['历史景点','自然风光','景点','美食','自然','历史'], prefs: { algorithm: 'content_based', sort_by: 'score', top_n: 100, categories: [] } },
-			// 日记
-			diary: { list: [], selected: null, submitting: false, form: { title: '', content: '', latitude: null, longitude: null } },
 			// 路径搜索
 			routeSearch: { query: '', loading: false, results: [], error: null }
 		}
@@ -435,13 +563,8 @@ export default {
 						popup: `${p.label || '路线点'} · ${p.latitude.toFixed(4)}, ${p.longitude.toFixed(4)}`
 					}))
 			}
-			if (this.activeTab === 'diary') {
-				return (this.diary.list || []).filter(d => typeof d.latitude==='number' && typeof d.longitude==='number')
-					.map(d => ({ id: d.id, name: d.title, latitude: d.latitude, longitude: d.longitude, popup: `${d.title} · ${d.date||''}` }))
-			}
 			return []
-		}
-	,
+		},
 		routeStats() {
 			const points = this.routeMarkers.length
 			const segments = Math.max(points - 1, 0)
@@ -450,14 +573,41 @@ export default {
 			const distanceLabel = Number.isFinite(distanceValue) && distanceValue > 0 ? distanceValue.toFixed(1) : '--'
 			const distanceText = distanceLabel === '--' ? '--' : `${distanceLabel} km`
 			return { points, segments, distanceValue, distanceLabel, distanceText }
+		},
+		// 预计时间（假设平均速度40km/h）
+		estimatedTime() {
+			const distance = this.routeStats.distanceValue
+			if (!Number.isFinite(distance) || distance <= 0) return '--'
+			const hours = distance / 40
+			if (hours < 1) {
+				return `${Math.round(hours * 60)}分钟`
+			} else {
+				const h = Math.floor(hours)
+				const m = Math.round((hours - h) * 60)
+				return m > 0 ? `${h}小时${m}分钟` : `${h}小时`
+			}
+		},
+		roadPathCoords() {
+			// 从 routeInfo 中提取道路路径坐标
+			if (!this.routeInfo) return []
+			// 尝试从不同位置获取路径数据
+			const path = this.routeInfo.data?.road_path || this.routeInfo.road_path || []
+			return Array.isArray(path) ? path : []
 		}
 	},
 	async mounted() {
-		// 初始化类别、附近与推荐、日记
+		// 初始化类别、附近与推荐
 		this.place.categories = await fetchCategories()
 			// 初始将输入与中心同步
 			this.place.lat = this.mapCenter[0]; this.place.lon = this.mapCenter[1]
-			await Promise.all([this.loadNearby(), this.refreshRecommend(), this.loadDiaries()])
+			await Promise.all([this.loadNearby(), this.refreshRecommend()])
+		
+		// 监听来自AI助手的路线导入事件
+		window.addEventListener('import-ai-route', this.handleImportAIRoute);
+	},
+	beforeUnmount() {
+		// 清理事件监听
+		window.removeEventListener('import-ai-route', this.handleImportAIRoute);
 	},
 	methods: {
 		goLogin() {
@@ -467,15 +617,11 @@ export default {
 		locate() { this.$refs.baseMap?.locateUser?.(false) },
 		onLocationUpdate(pos) {
 			if (!pos) return
-			// 更新默认地图中心与日记坐标
+			// 更新默认地图中心
 			this.mapCenter = [pos.latitude, pos.longitude]
-				// 同步到“附近”输入
+				// 同步到"附近"输入
 				this.place.lat = pos.latitude
 				this.place.lon = pos.longitude
-			if (this.activeTab === 'diary') {
-				this.diary.form.latitude = pos.latitude
-				this.diary.form.longitude = pos.longitude
-			}
 		},
 		onMarkerClick(item) {
 			if (!item) return
@@ -538,13 +684,144 @@ export default {
 		undoRoute() { if (this.routeMarkers.length) this.routeMarkers.pop() },
 		clearRoute() { this.routeMarkers = []; this.routeInfo = null },
 		reverseRoute() { if (this.routeMarkers.length>=2) this.routeMarkers = [...this.routeMarkers].reverse() },
+		// 计算两点之间的距离（Haversine公式）
+		calculateDistance(lat1, lon1, lat2, lon2) {
+			const R = 6371 // 地球半径（公里）
+			const dLat = (lat2 - lat1) * Math.PI / 180
+			const dLon = (lon2 - lon1) * Math.PI / 180
+			const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+				Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+				Math.sin(dLon / 2) * Math.sin(dLon / 2)
+			const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+			return R * c
+		},
+		// 使用贪心算法（最近邻）获取优化后的路线顺序
+		getOptimizedRoute(markers) {
+			if (markers.length < 3) return markers
+			
+			// 固定第一个点作为起点
+			const start = markers[0]
+			const remaining = [...markers.slice(1)]
+			const optimized = [start]
+			
+			// 贪心算法：每次选择距离当前点最近的未访问点
+			while (remaining.length > 0) {
+				const current = optimized[optimized.length - 1]
+				let nearestIndex = 0
+				let minDistance = this.calculateDistance(
+					current.latitude, current.longitude,
+					remaining[0].latitude, remaining[0].longitude
+				)
+				
+				for (let i = 1; i < remaining.length; i++) {
+					const dist = this.calculateDistance(
+						current.latitude, current.longitude,
+						remaining[i].latitude, remaining[i].longitude
+					)
+					if (dist < minDistance) {
+						minDistance = dist
+						nearestIndex = i
+					}
+				}
+				
+				optimized.push(remaining[nearestIndex])
+				remaining.splice(nearestIndex, 1)
+			}
+			
+			return optimized
+		},
 		async planSimpleRoute() {
 			if (this.routeMarkers.length < 2) return
 			this.planning = true
 			try {
-				const info = await planSimple(this.routeMarkers[0], this.routeMarkers[this.routeMarkers.length - 1])
+				// 根据模式决定是否优化顺序
+				let markers = [...this.routeMarkers]
+				
+				if (this.optimizeMode && markers.length >= 3) {
+					// 智能优化模式：自动优化访问顺序
+					markers = this.getOptimizedRoute(markers)
+				}
+				// 否则使用原始顺序（顺序模式）
+				
+				// 提取起点和终点
+				const start = markers[0]
+				const end = markers[markers.length - 1]
+				
+				// 提取中间waypoints（如果有的话）
+				const waypoints = markers.slice(1, -1)
+				
+				// 调用多点路径规划API
+				const info = await planSimple(start, end, waypoints)
 				this.routeInfo = info
-			} catch (e) { console.error('路线计算失败', e); this.routeInfo = null } finally { this.planning = false }
+				
+				// 路线计算成功后显示结果弹窗
+				if (info) {
+					this.showRouteResult = true
+				}
+			} catch (e) { 
+				console.error('路线计算失败', e)
+				this.routeInfo = null 
+			} finally { 
+				this.planning = false 
+			}
+		},
+		// 获取两个站点之间的距离
+		getSegmentDistance(index) {
+			if (index >= this.routeMarkers.length - 1) return 0
+			const p1 = this.routeMarkers[index]
+			const p2 = this.routeMarkers[index + 1]
+			return this.calculateDistance(p1.latitude, p1.longitude, p2.latitude, p2.longitude)
+		},
+		// 获取段落预计时间
+		getSegmentTime(index) {
+			const distance = this.getSegmentDistance(index)
+			if (distance === 0) return '--'
+			const hours = distance / 40 // 假设平均速度40km/h
+			const minutes = Math.round(hours * 60)
+			if (minutes < 60) {
+				return `${minutes}分钟`
+			} else {
+				const h = Math.floor(minutes / 60)
+				const m = minutes % 60
+				return m > 0 ? `${h}小时${m}分钟` : `${h}小时`
+			}
+		},
+		// 导出路线
+		exportRoute() {
+			if (this.routeMarkers.length < 2) return
+			
+			// 构建导出数据
+			const data = {
+				title: '旅行路线',
+				created_at: new Date().toISOString(),
+				total_distance: this.routeStats.distanceLabel + ' km',
+				estimated_time: this.estimatedTime,
+				points: this.routeMarkers.map((p, i) => ({
+					sequence: i + 1,
+					name: p.label || `站点 ${i + 1}`,
+					latitude: p.latitude,
+					longitude: p.longitude,
+					source: p.source,
+					distance_to_next: i < this.routeMarkers.length - 1 ? this.getSegmentDistance(i).toFixed(2) + ' km' : null
+				}))
+			}
+			
+			// 转换为JSON字符串
+			const json = JSON.stringify(data, null, 2)
+			
+			// 创建下载链接
+			const blob = new Blob([json], { type: 'application/json' })
+			const url = URL.createObjectURL(blob)
+			const a = document.createElement('a')
+			a.href = url
+			a.download = `旅行路线_${new Date().getTime()}.json`
+			document.body.appendChild(a)
+			a.click()
+			document.body.removeChild(a)
+			URL.revokeObjectURL(url)
+			
+			// 提示用户
+			alert('路线已导出!')
 		},
 		// 来自 BaseMap 的事件
 		// route-point-add
@@ -604,41 +881,129 @@ export default {
 				this.routeSearch.loading = false
 			}
 		},
-		// --- 日记 ---
-		async loadDiaries() {
+		/**
+		 * 处理从AI助手导入路线的请求
+		 */
+		async handleImportAIRoute(event) {
+			const { attractions } = event.detail;
+			
+			if (!attractions || attractions.length === 0) {
+				alert('没有可导入的景点');
+				return;
+			}
+			
+			console.log('[Home] 开始导入AI推荐的景点:', attractions);
+			
+			// 显示加载状态
+			this.planning = true;
+			
 			try {
-				const list = await fetchDiaries({ user_id: 1 })
-				this.diary.list = Array.isArray(list) ? list : []
-			} catch (e) { console.error('加载日记失败', e); this.diary.list = [] }
-		},
-		async submitDiary() {
-			if (!this.diary.form.title || !this.diary.form.content) return
-			this.diary.submitting = true
-			try {
-				const created = await createDiary({
-					user_id: 1,
-					title: this.diary.form.title,
-					content: this.diary.form.content,
-					latitude: this.diary.form.latitude,
-					longitude: this.diary.form.longitude
-				})
-				if (created) {
-					this.diary.list = [created, ...this.diary.list]
-					this.activeTab = 'diary'
-					this.selectedId = created.id
-					if (typeof created.latitude==='number' && typeof created.longitude==='number') this.mapCenter = [created.latitude, created.longitude]
-					this.diary.form = { title: '', content: '', latitude: null, longitude: null }
+				// 动态导入API方法
+				const { searchAttractions } = await import('@/api/place');
+				
+				// 批量查询景点坐标
+				const results = await searchAttractions(attractions);
+				
+				console.log('[Home] 查询到的景点信息:', results);
+				
+				if (results.length === 0) {
+					alert('未能找到任何景点的坐标信息，请尝试更具体的景点名称');
+					return;
 				}
-			} catch (e) { console.error('创建日记失败', e) } finally { this.diary.submitting = false }
-		},
-		async selectDiary(d) {
-			try {
-				const detail = await fetchDiaryDetail(d.id)
-				this.diary.selected = detail || d
-			} catch { this.diary.selected = d }
-			this.selectedId = d.id
-			if (typeof d.latitude==='number' && typeof d.longitude==='number') this.mapCenter = [d.latitude, d.longitude]
+				
+				// 清空现有路线
+				this.routeMarkers = [];
+				
+				// 将查询到的景点添加到路线
+				for (const attraction of results) {
+					this.routeMarkers.push({
+						latitude: attraction.latitude,
+						longitude: attraction.longitude,
+						label: attraction.name,
+						source: 'ai',
+						meta: {
+							subtitle: attraction.description || attraction.category,
+							category: attraction.category
+						}
+					});
+				}
+				
+			// 切换到路径规划标签
+			this.activeTab = 'route';
+			
+			// 定位到第一个景点
+			if (results.length > 0) {
+				this.mapCenter = [results[0].latitude, results[0].longitude];
+			}
+			
+			// 等待UI更新后计算路线
+			await this.$nextTick();
+			
+			// 自动计算路线
+			if (this.routeMarkers.length >= 2) {
+				await this.planSimpleRoute();
+				
+				// 显示成功消息
+				const missed = attractions.length - results.length;
+				const msg = missed > 0 
+					? `✅ 成功导入 ${results.length} 个景点并规划路线！\n⚠️ ${missed} 个景点未找到坐标`
+					: `✅ 成功导入 ${results.length} 个景点并规划路线！`;
+				alert(msg);
+			} else if (results.length === 1) {
+				alert(`✅ 导入了 1 个景点，至少需要 2 个景点才能规划路线`);
+			}
+			
+			console.log(`[Home] 导入完成: ${results.length}/${attractions.length} 个景点`);
+				
+			} catch (error) {
+				console.error('[Home] 导入AI路线失败:', error);
+				alert('导入失败：' + error.message);
+			} finally {
+				this.planning = false;
+			}
 		}
 	}
 }
 </script>
+
+<style scoped>
+@keyframes slideUp {
+	from {
+		opacity: 0;
+		transform: translateY(20px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+/* 加载动画 */
+@keyframes spin {
+	to {
+		transform: rotate(360deg);
+	}
+}
+
+.animate-spin {
+	animation: spin 1s linear infinite;
+}
+
+/* 自定义滚动条 */
+.overflow-y-auto::-webkit-scrollbar {
+	width: 6px;
+}
+
+.overflow-y-auto::-webkit-scrollbar-track {
+	background: #f1f1f1;
+}
+
+.overflow-y-auto::-webkit-scrollbar-thumb {
+	background: #cbd5e1;
+	border-radius: 3px;
+}
+
+.overflow-y-auto::-webkit-scrollbar-thumb:hover {
+	background: #94a3b8;
+}
+</style>

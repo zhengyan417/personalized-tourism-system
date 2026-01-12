@@ -22,7 +22,7 @@ npm install
 
 2. 启动开发服务器
 
-```pwshy
+```pwsh
 npm run serve
 ```
 
@@ -35,7 +35,6 @@ npm run build
 也可从仓库根目录操作（已配置便捷脚本）：
 
 ```pwsh
-cd /d C:\code\travel
 npm run frontend:install
 npm run frontend:serve
 ```

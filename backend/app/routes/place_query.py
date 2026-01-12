@@ -187,3 +187,64 @@ def get_nearby_places():
             "status": "error",
             "message": str(e)
         }), 500
+
+
+# -----------------------------------------
+# GET /api/attractions/search
+# 根据景点名称搜索景点（用于AI路线导入）
+# -----------------------------------------
+@place_bp.route('/search', methods=['GET'], endpoint='search_attractions')
+def search_attractions():
+    """
+    根据景点名称搜索景点，支持模糊匹配
+    示例请求：GET /api/attractions/search?name=故宫
+    """
+    try:
+        name = request.args.get('name', '').strip()
+        
+        if not name:
+            return jsonify({
+                'status': 'error',
+                'message': '景点名称不能为空'
+            }), 400
+        
+        db = get_db()
+        with db.cursor() as cursor:
+            # 尝试精确匹配
+            cursor.execute("""
+                SELECT * FROM attractions 
+                WHERE name = %s 
+                LIMIT 1
+            """, (name,))
+            result = cursor.fetchone()
+            
+            # 如果精确匹配失败，尝试模糊匹配
+            if not result:
+                cursor.execute("""
+                    SELECT * FROM attractions 
+                    WHERE name LIKE %s 
+                    ORDER BY 
+                        CASE 
+                            WHEN name = %s THEN 0
+                            WHEN name LIKE %s THEN 1
+                            ELSE 2
+                        END,
+                        LENGTH(name)
+                    LIMIT 5
+                """, (f'%{name}%', name, f'{name}%'))
+                results = cursor.fetchall()
+            else:
+                results = [result]
+        
+        return jsonify({
+            'status': 'success',
+            'count': len(results),
+            'data': results
+        }), 200
+        
+    except Exception as e:
+        print(f'[Attractions Search] Error: {e}')
+        return jsonify({
+            'status': 'error',
+            'message': f'搜索失败: {str(e)}'
+        }), 500

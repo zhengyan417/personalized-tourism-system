@@ -36,6 +36,42 @@
         </div>
       </div>
 
+      <!-- AI助手快捷操作卡片 -->
+      <div class="bg-gradient-to-br from-purple-50 to-blue-50 rounded-2xl border border-purple-100 shadow-sm overflow-hidden">
+        <div class="px-6 py-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div class="flex items-center gap-4">
+            <div class="bg-gradient-to-br from-purple-500 to-blue-500 w-12 h-12 rounded-xl flex items-center justify-center shadow-lg">
+              <i class="bi bi-stars text-white text-xl"></i>
+            </div>
+            <div>
+              <h3 class="text-lg font-bold text-gray-900 flex items-center gap-2">
+                AI 智能助手
+                <span class="text-xs font-medium px-2 py-0.5 rounded-full bg-purple-100 text-purple-600">NEW</span>
+              </h3>
+              <p class="text-sm text-gray-600 mt-0.5">让AI了解你的偏好，获得个性化旅行建议</p>
+            </div>
+          </div>
+          <button 
+            @click="sendProfileToAI"
+            :disabled="sendingToAI"
+            class="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+          >
+            <i class="bi bi-send-fill"></i>
+            <span v-if="sendingToAI">发送中...</span>
+            <span v-else>一键发送我的信息</span>
+          </button>
+        </div>
+        <div v-if="aiSendSuccess" class="px-6 pb-5">
+          <div class="flex items-start gap-2 text-sm text-green-700 bg-green-50 border border-green-100 rounded-lg px-4 py-3">
+            <i class="bi bi-check-circle-fill mt-0.5"></i>
+            <div>
+              <p class="font-medium">已成功发送给AI助手!</p>
+              <p class="text-xs text-green-600 mt-1">AI现在可以根据你的个人信息提供更精准的旅行建议了。</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Form card -->
       <div class="bg-white shadow-xl rounded-[32px] border border-slate-100 overflow-hidden">
         <div class="px-6 sm:px-10 py-6 border-b border-slate-100">
@@ -149,7 +185,9 @@ export default {
         avatar: '',
         travel_persona: '',
         favorite_cities: ''
-      }
+      },
+      sendingToAI: false,
+      aiSendSuccess: false
     }
   },
   mounted() {
@@ -241,6 +279,68 @@ export default {
       if (!dateStr) return '未知'
       const date = new Date(dateStr)
       return date.toLocaleString('zh-CN')
+    },
+    async sendProfileToAI() {
+      this.sendingToAI = true
+      this.aiSendSuccess = false
+      
+      try {
+        // 构建个人信息文本
+        const profileText = this.buildProfileMessage()
+        
+        // 触发全局事件，打开AI助手并发送消息
+        window.dispatchEvent(new CustomEvent('open-ai-assistant', {
+          detail: {
+            message: profileText,
+            autoSend: true
+          }
+        }))
+        
+        // 显示成功状态
+        this.aiSendSuccess = true
+        setTimeout(() => {
+          this.aiSendSuccess = false
+        }, 5000)
+        
+      } catch (error) {
+        console.error('发送到AI失败:', error)
+        this.showMessage('发送失败，请重试', 'error')
+      } finally {
+        this.sendingToAI = false
+      }
+    },
+    buildProfileMessage() {
+      const parts = []
+      
+      parts.push('📝 这是我的个人信息：\n')
+      
+      if (this.profile.username) {
+        parts.push(`👤 用户名：${this.profile.username}`)
+      }
+      
+      if (this.form.age || this.profile.age) {
+        parts.push(`🎂 年龄：${this.form.age || this.profile.age}岁`)
+      }
+      
+      if (this.form.occupation || this.profile.occupation) {
+        parts.push(`💼 职业：${this.form.occupation || this.profile.occupation}`)
+      }
+      
+      if (this.form.travel_persona || this.profile.travel_persona) {
+        parts.push(`✈️ 旅行画像：${this.form.travel_persona || this.profile.travel_persona}`)
+      }
+      
+      if (this.form.favorite_cities || this.profile.favorite_cities) {
+        parts.push(`🏙️ 偏好城市：${this.form.favorite_cities || this.profile.favorite_cities}`)
+      }
+      
+      if (this.form.bio || this.profile.bio) {
+        parts.push(`📖 个人简介：${this.form.bio || this.profile.bio}`)
+      }
+      
+      parts.push('\n💡 请根据这些信息，为我提供个性化的旅行建议和推荐！')
+      
+      return parts.join('\n')
     }
   }
 }
