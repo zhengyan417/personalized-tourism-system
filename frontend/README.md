@@ -22,7 +22,7 @@ npm install
 
 2. 启动开发服务器
 
-```pwsh
+```pwshy
 npm run serve
 ```
 
