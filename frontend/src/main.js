@@ -1,6 +1,7 @@
 import { createApp } from 'vue'
 import App from './App.vue'
 import router from './router'
+import store from './store'
 
 // Global styles: Bootstrap and Leaflet CSS
 import 'bootstrap/dist/css/bootstrap.min.css'
@@ -64,5 +65,6 @@ window.addEventListener('unhandledrejection', (event) => {
   }
 })
 
+app.use(store)
 app.use(router)
 app.mount('#app')

@@ -1,5 +1,38 @@
 import { createStore } from 'vuex'
 
+// 用户认证模块
+const auth = {
+	namespaced: true,
+	state: () => ({
+		user: null, // { id, username, email, ... }
+		isLoggedIn: false
+	}),
+	mutations: {
+		setUser(state, user) {
+			state.user = user
+			state.isLoggedIn = !!user
+		},
+		logout(state) {
+			state.user = null
+			state.isLoggedIn = false
+		}
+	},
+	actions: {
+		login({ commit }, user) {
+			commit('setUser', user)
+		},
+		logout({ commit }) {
+			commit('logout')
+		}
+	},
+	getters: {
+		isLoggedIn: state => state.isLoggedIn,
+		currentUser: state => state.user,
+		userId: state => state.user?.id
+	}
+}
+
+// 路径规划模块
 const routePlanning = {
 	namespaced: true,
 	state: () => ({
@@ -36,4 +69,9 @@ const routePlanning = {
 	}
 }
 
-export default createStore({ modules: { routePlanning } })
+export default createStore({ 
+	modules: { 
+		auth,
+		routePlanning 
+	} 
+})

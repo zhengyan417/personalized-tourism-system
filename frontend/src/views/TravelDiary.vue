@@ -86,15 +86,23 @@
 								:class="selectedId === d.id ? 'bg-brand-50/80' : 'hover:bg-slate-50'"
 								@click="selectDiary(d)">
 								<div class="flex items-start justify-between gap-3">
-									<div>
-										<p class="font-semibold text-slate-900 line-clamp-1">{{ d.title }}</p>
-										<p class="text-xs text-slate-400 mt-1 flex items-center gap-2">
-											<span class="inline-flex items-center gap-1"><i class="bi bi-calendar3"></i>{{ d.date || '-' }}</span>
-											<span class="inline-flex items-center gap-1"><i class="bi bi-geo-alt"></i>{{ d.attraction_name || '未关联景点' }}</span>
-										</p>
-										<p class="text-sm text-slate-500 mt-2 line-clamp-2">{{ d.snippet || d.content || '（无内容）' }}</p>
-									</div>
+								<div class="flex-1">
+									<p class="font-semibold text-slate-900 line-clamp-1">{{ d.title }}</p>
+									<p class="text-xs text-slate-400 mt-1 flex items-center gap-2">
+										<span class="inline-flex items-center gap-1"><i class="bi bi-calendar3"></i>{{ d.date || '-' }}</span>
+										<span class="inline-flex items-center gap-1"><i class="bi bi-geo-alt"></i>{{ d.attraction_name || '未关联景点' }}</span>
+									</p>
+									<p class="text-sm text-slate-500 mt-2 line-clamp-2">{{ d.snippet || d.content || '（无内容）' }}</p>
+								</div>
+								<div class="flex flex-col items-end gap-2">
 									<div class="text-xs font-medium text-slate-400">{{ d.username || '匿名用户' }}</div>
+									<button 
+										@click.stop="confirmDeleteDiary(d.id)"
+										class="text-rose-400 hover:text-rose-600 hover:bg-rose-50 transition p-1.5 rounded"
+										title="删除此日记">
+										<i class="bi bi-trash text-sm"></i>
+									</button>
+								</div>
 								</div>
 								<span class="absolute top-4 right-6 inline-flex items-center gap-1 text-[10px] font-semibold" :class="selectedId === d.id ? 'text-brand-600' : 'text-slate-300'">
 									<i class="bi" :class="selectedId === d.id ? 'bi-pin-angle-fill' : 'bi-pin'">
@@ -484,7 +492,29 @@ export default {
 			// 平滑移动中心
 			this.mapCenter = [pt.latitude, pt.longitude]
 		},
-		async deleteDiaryEntry() {
+		async confirmDeleteDiary(diaryId) {
+if (this.deleting) return
+if (typeof window !== 'undefined' && !window.confirm('确定删除这篇日记吗？此操作无法撤销。')) return
+this.deleting = true
+try {
+const ok = await removeDiary(diaryId)
+if (ok) {
+this.diaries = this.diaries.filter(d => String(d.id) !== String(diaryId))
+// 如果删除的是当前选中的日记，则清空选中状态
+if (String(this.selectedId) === String(diaryId)) {
+this.selectedId = this.diaries[0]?.id ?? null
+this.selectedDiary = this.diaries[0] ?? null
+}
+alert('日记已删除')
+}
+} catch (e) {
+console.error('删除日记失败', e)
+alert('删除失败: ' + (e.message || '未知错误'))
+} finally {
+this.deleting = false
+}
+},
+async deleteDiaryEntry() {
 			if (!this.selectedId || this.deleting) return
 			if (typeof window !== 'undefined' && !window.confirm('确定删除当前选中日记吗？')) return
 			this.deleting = true
@@ -544,5 +574,6 @@ export default {
 	}
 }
 </script>
+
 
 

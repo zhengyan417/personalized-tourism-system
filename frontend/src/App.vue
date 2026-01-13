@@ -61,10 +61,15 @@
 import ThemeToggle from './components/ui/ThemeToggle.vue'
 import AiAssistant from './components/AiAssistant.vue'
 import { me, logout } from './api/auth'
+import { useStore } from 'vuex'
 
 export default {
 	name: 'App',
 	components: { ThemeToggle, AiAssistant },
+	setup() {
+		const store = useStore()
+		return { store }
+	},
 	data() {
 		return {
 			isLoggedIn: false,
@@ -78,20 +83,29 @@ export default {
 	methods: {
 		async checkLoginStatus() {
 			try {
+				console.log('[App checkLoginStatus] 开始检查登录状态')
 				const { data } = await me()
+				console.log('[App checkLoginStatus] API响应:', data)
 				if (data && data.status === 'success' && data.data) {
 					this.isLoggedIn = true
 					this.user = data.data
 					this.username = data.data.username || '用户'
+					// 同步到 Vuex
+					console.log('[App checkLoginStatus] 同步到Vuex, user:', data.data)
+					this.store.dispatch('auth/login', data.data)
 				} else {
+					console.log('[App checkLoginStatus] 登录状态检查失败，清除状态')
 					this.isLoggedIn = false
 					this.user = null
 					this.username = ''
+					this.store.dispatch('auth/logout')
 				}
-			} catch {
+			} catch (e) {
+				console.log('[App checkLoginStatus] 检查登录状态异常:', e)
 				this.isLoggedIn = false
 				this.user = null
 				this.username = ''
+				this.store.dispatch('auth/logout')
 			}
 		},
 		async handleLogout() {
@@ -103,6 +117,8 @@ export default {
 			this.isLoggedIn = false
 			this.user = null
 			this.username = ''
+			// 同步到 Vuex
+			this.store.dispatch('auth/logout')
 			// 退出登录后跳转到登录页
 			this.$router.push('/login')
 		}

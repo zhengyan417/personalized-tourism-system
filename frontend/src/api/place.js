@@ -35,7 +35,7 @@ export async function fetchCategories() {
 // 根据名称搜索景点
 export async function searchAttractionByName(name) {
 	try {
-		const { data } = await api.get('/api/attractions/search', {
+		const { data } = await api.get('/api/places/search', {
 			params: { name: name }
 		})
 		if (data?.status === 'success' && Array.isArray(data.data) && data.data.length > 0) {
