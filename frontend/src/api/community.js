@@ -79,6 +79,20 @@ export async function addComment(diaryId, content, parentId = null) {
   }
 }
 
+// 增加浏览量
+export async function incrementView(diaryId) {
+  try {
+    const { data } = await api.post(`/api/community/diaries/${diaryId}/view`)
+    if (data?.success) {
+      return data.view_count
+    }
+    throw new Error(data?.message || '更新浏览量失败')
+  } catch (error) {
+    console.error('更新浏览量失败:', error)
+    throw error
+  }
+}
+
 // 关注/取消关注用户
 export async function toggleFollow(userId) {
   try {

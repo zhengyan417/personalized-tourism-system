@@ -131,7 +131,7 @@ def _build_select_sql(include_location):
         "d.attraction_id",
         "d.title",
         "d.content",
-        "d.create_time"
+        "d.created_at"
     ]
     if include_location:
         fields.extend(["d.latitude", "d.longitude"])
@@ -167,7 +167,7 @@ def _row_to_diary(row):
         "title": row.get('title') or "",
         "content": content,
         "snippet": snippet,
-        "date": _format_timestamp(row.get('create_time')),
+        "date": _format_timestamp(row.get('created_at')),
         "latitude": lat,
         "longitude": lon
     }
@@ -289,7 +289,7 @@ def list_diaries():
     if not db:
         return _error('数据库未初始化，请稍后重试', 500)
     include_location = _has_location_columns()
-    sql = _build_select_sql(include_location) + ' WHERE d.user_id=%s ORDER BY d.create_time DESC'
+    sql = _build_select_sql(include_location) + ' WHERE d.user_id=%s ORDER BY d.created_at DESC'
     with db.cursor() as cursor:
         cursor.execute(sql, (user_id,))
         rows = cursor.fetchall()
@@ -318,7 +318,7 @@ def list_public_diaries():
         "d.attraction_id",
         "d.title",
         "d.content",
-        "d.create_time"
+        "d.created_at"
     ]
     if include_location:
         select_fields.extend(["d.latitude", "d.longitude"])
@@ -335,7 +335,7 @@ def list_public_diaries():
         FROM diaries d 
         LEFT JOIN attractions a ON d.attraction_id = a.attraction_id 
         LEFT JOIN users u ON d.user_id = u.user_id
-        ORDER BY d.create_time DESC
+        ORDER BY d.created_at DESC
         LIMIT %s OFFSET %s
     """
     

@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify, session
 from werkzeug.security import generate_password_hash, check_password_hash
 from app.utils.database import get_db
 from app.services import auth_service
+from datetime import timedelta
 
 
 auth_bp = Blueprint('auth', __name__)
@@ -64,6 +65,7 @@ def login():
         return jsonify({'status': 'error', 'message': '密码错误'}), 401
 
     # 设置会话（服务器端 session cookie）
+    session.permanent = True  # 使session持久化
     session['user_id'] = int(user_id)
     session['username'] = uname
     

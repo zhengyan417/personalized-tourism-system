@@ -346,6 +346,10 @@ export default {
         const name = normalizeName(raw);
         if (!name || seen.has(name)) return;
         if (name.length < 2 || name.length > 20) return;
+        
+        // 过滤包含时间的字符串
+        if (name.includes(':') || /\d{1,2}:\d{2}/.test(name)) return;
+        
         if (new RegExp(PLACE_SUFFIX + '$').test(name) || knownAttractions.has(name)) {
           attractions.push(name);
           seen.add(name);

@@ -72,9 +72,14 @@
 
 <script>
 import { login, register, logout, me } from '@/api/auth'
+import { useStore } from 'vuex'
 
 export default {
   name: 'Login',
+  setup() {
+    const store = useStore()
+    return { store }
+  },
   data() {
     return {
       form: { username: '', password: '', email: '' },
@@ -93,6 +98,8 @@ export default {
         const { data } = await me()
         if (data && data.status === 'success') {
           this.user = data.data
+          // 存储到 Vuex
+          this.store.dispatch('auth/login', data.data)
         }
       } catch {}
     },
@@ -105,6 +112,8 @@ export default {
           this.message = '登录成功'
           this.messageType = 'info'
           this.user = data.data
+          // 存储到 Vuex
+          this.store.dispatch('auth/login', data.data)
           this.$emit('user-logged-in')
           // 登录成功后跳转到首页
           setTimeout(() => {

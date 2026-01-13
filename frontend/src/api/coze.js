@@ -55,6 +55,7 @@ export async function sendCozeMessage(query, userId, userProfile, onChunk, onErr
     const decoder = new TextDecoder('utf-8');
     let buffer = '';
     let messageCount = 0;
+    let currentEvent = null; // 跟踪当前事件类型
 
     console.log('[Coze] 开始读取流式响应...');
 
@@ -71,9 +72,8 @@ export async function sendCozeMessage(query, userId, userProfile, onChunk, onErr
 
       for (const line of lines) {
         if (line.startsWith('event:')) {
-            const eventType = line.slice(6).trim();
-            console.log('[Coze] Event:', eventType);
-            // event type - 忽略
+            currentEvent = line.slice(6).trim(); // 记录当前事件类型
+            console.log('[Coze] Event:', currentEvent);
         } else if (line.startsWith('data:')) {
             const dataStr = line.slice(5).trim();
             if (!dataStr) continue;
@@ -102,33 +102,16 @@ export async function sendCozeMessage(query, userId, userProfile, onChunk, onErr
                    continue;
                 }
                 
-                // 优先处理 Coze v3 delta 事件（流式增量内容）
-                if (data.event === 'conversation.message.delta' && data.data && data.data.content) {
-                   console.log('[Coze] ✅ Delta 事件 - 发送内容片段');
-                   messageCount++;
-                   onChunk(data.data.content);
-                   continue; // 🔧 处理完后跳过后续判断
-                // Coze v3 stream events
-                if (data.type === 'answer') {
-                   onChunk(data.content);
-                } else if (data.event === 'conversation.message.delta') {
-                   if (data.data && data.data.content) {
-                       onChunk(data.data.content);
-                   }
-                } else if (data.content) {
-                   // 兜底：如果有content字段就显示
-                   onChunk(data.content);
-                }
-                
-                // 跳过 completed 事件（避免重复，delta 已经包含了所有内容）
-                if (data.event === 'conversation.message.completed') {
-                   console.log('[Coze] ℹ️ Completed 事件 - 跳过（已通过delta接收）');
+                // 跳过 completed 事件（避免重复）
+                if (currentEvent === 'conversation.message.completed') {
+                   console.log('[Coze] ℹ️ Completed 事件 - 跳过（避免重复）');
                    continue;
                 }
                 
-                // 处理非流式的完整 answer 消息（兼容不同API版本）
-                if (data.type === 'answer' && data.content && !data.event) {
-                   console.log('[Coze] ✅ Answer 类型 - 发送完整内容');
+                // 处理 delta 事件或非事件的 answer 消息
+                if (data.type === 'answer' && data.content && 
+                    (currentEvent === 'conversation.message.delta' || !currentEvent)) {
+                   console.log('[Coze] ✅ Answer 类型 - 发送内容, 事件类型:', currentEvent);
                    messageCount++;
                    onChunk(data.content);
                    continue;

@@ -108,17 +108,21 @@
 							<!-- 卡片底部：互动数据 -->
 							<div class="px-6 py-3 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-sm text-slate-500">
 								<div class="flex items-center gap-4">
-									<button class="hover:text-rose-500 transition-colors">
-										<i class="bi bi-heart"></i>
-										<span class="ml-1">0</span>
+									<button 
+										@click.stop="handleLike(diary)" 
+										class="hover:text-rose-500 transition-colors"
+										:class="{ 'text-rose-500': likedDiaries.has(diary.diary_id) }"
+									>
+										<i class="bi" :class="likedDiaries.has(diary.diary_id) ? 'bi-heart-fill' : 'bi-heart'"></i>
+										<span class="ml-1">{{ diary.like_count || 0 }}</span>
 									</button>
 									<button class="hover:text-brand-500 transition-colors">
 										<i class="bi bi-chat"></i>
-										<span class="ml-1">0</span>
+										<span class="ml-1">{{ diary.comment_count || 0 }}</span>
 									</button>
 									<button class="hover:text-brand-500 transition-colors">
 										<i class="bi bi-eye"></i>
-										<span class="ml-1">0</span>
+										<span class="ml-1">{{ diary.view_count || 0 }}</span>
 									</button>
 								</div>
 								<button class="hover:text-brand-500 transition-colors">
@@ -276,21 +280,82 @@
 				</div>
 
 				<!-- 弹窗底部：互动 -->
-				<div class="px-6 py-4 border-t border-slate-100 bg-slate-50 flex items-center justify-between">
-					<div class="flex items-center gap-4">
-						<button class="flex items-center gap-1 px-3 py-2 rounded-lg hover:bg-white transition-colors text-slate-600 hover:text-rose-500">
-							<i class="bi bi-heart text-lg"></i>
-							<span class="text-sm">点赞</span>
-						</button>
+				<div class="px-6 py-4 border-t border-slate-100 bg-slate-50">
+					<div class="flex items-center justify-between mb-3">
+						<div class="flex items-center gap-4">
+							<button 
+								@click="handleLike(selectedDiary)" 
+								class="flex items-center gap-1 px-3 py-2 rounded-lg hover:bg-white transition-colors"
+								:class="likedDiaries.has(selectedDiary.diary_id) ? 'text-rose-500' : 'text-slate-600 hover:text-rose-500'"
+							>
+								<i class="bi text-lg" :class="likedDiaries.has(selectedDiary.diary_id) ? 'bi-heart-fill' : 'bi-heart'"></i>
+								<span class="text-sm">{{ likedDiaries.has(selectedDiary.diary_id) ? '已点赞' : '点赞' }} ({{ selectedDiary.like_count || 0 }})</span>
+							</button>
+							<button 
+								@click="toggleComments" 
+								class="flex items-center gap-1 px-3 py-2 rounded-lg hover:bg-white transition-colors text-slate-600 hover:text-brand-500"
+							>
+								<i class="bi bi-chat text-lg"></i>
+								<span class="text-sm">评论 ({{ selectedDiary.comment_count || 0 }})</span>
+							</button>
+						</div>
 						<button class="flex items-center gap-1 px-3 py-2 rounded-lg hover:bg-white transition-colors text-slate-600 hover:text-brand-500">
-							<i class="bi bi-chat text-lg"></i>
-							<span class="text-sm">评论</span>
+							<i class="bi bi-bookmark text-lg"></i>
+							<span class="text-sm">收藏</span>
 						</button>
 					</div>
-					<button class="flex items-center gap-1 px-3 py-2 rounded-lg hover:bg-white transition-colors text-slate-600 hover:text-brand-500">
-						<i class="bi bi-bookmark text-lg"></i>
-						<span class="text-sm">收藏</span>
-					</button>
+
+					<!-- 评论区域 -->
+					<div v-if="showComments" class="mt-4 pt-4 border-t border-slate-200">
+						<!-- 评论输入框 -->
+						<div v-if="isLoggedIn" class="mb-4">
+							<textarea 
+								v-model="newComment"
+								rows="3" 
+								class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 resize-none"
+								placeholder="写下你的评论..."
+							></textarea>
+							<div class="flex justify-end mt-2">
+								<button 
+									@click="submitComment"
+									class="px-4 py-2 bg-brand-500 text-white rounded-lg hover:bg-brand-600 transition-colors text-sm font-medium"
+									:disabled="!newComment.trim()"
+								>
+									发表评论
+								</button>
+							</div>
+						</div>
+						<div v-else class="mb-4 p-3 bg-blue-50 text-blue-600 rounded-lg text-sm text-center">
+							<i class="bi bi-info-circle mr-1"></i>
+							请<router-link to="/login" class="underline font-medium">登录</router-link>后发表评论
+						</div>
+
+						<!-- 评论列表 -->
+						<div class="space-y-3 max-h-60 overflow-y-auto">
+							<div v-if="comments.length === 0" class="text-center py-4 text-slate-400 text-sm">
+								<i class="bi bi-chat-square-text text-2xl mb-2 block"></i>
+								暂无评论，快来沙发吧！
+							</div>
+							<div 
+								v-for="comment in comments" 
+								:key="comment.comment_id"
+								class="flex gap-3 p-3 bg-white rounded-lg"
+							>
+								<img 
+									:src="comment.avatar_url || `https://ui-avatars.com/api/?name=${comment.username}&background=0ea5e9&color=fff`" 
+									:alt="comment.username"
+									class="w-8 h-8 rounded-full object-cover flex-shrink-0"
+								>
+								<div class="flex-1 min-w-0">
+									<div class="flex items-center gap-2 mb-1">
+										<span class="font-medium text-sm text-slate-900">{{ comment.nickname || comment.username }}</span>
+										<span class="text-xs text-slate-400">{{ formatDate(comment.created_at) }}</span>
+									</div>
+									<p class="text-sm text-slate-700">{{ comment.content }}</p>
+								</div>
+							</div>
+						</div>
+					</div>
 				</div>
 			</div>
 		</div>
@@ -302,6 +367,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useStore } from 'vuex'
 import BaseMap from '@/components/map/BaseMap.vue'
 import api from '@/api'
+import { toggleLike, fetchComments, addComment, incrementView } from '@/api/community'
 
 export default {
 	name: 'Community',
@@ -314,6 +380,10 @@ export default {
 		const selectedDiaryId = ref(null)
 		const currentTab = ref('latest')
 		const communityMap = ref(null)
+		const comments = ref([])
+		const newComment = ref('')
+		const likedDiaries = ref(new Set())
+		const showComments = ref(false)
 
 		const pagination = ref({
 			page: 1,
@@ -332,7 +402,7 @@ export default {
 			{ value: 'nearby', label: '附近', icon: 'bi-geo-alt' }
 		]
 
-		const isLoggedIn = computed(() => store.getters.isLoggedIn)
+		const isLoggedIn = computed(() => store.getters['auth/isLoggedIn'])
 
 		const mapCenter = computed(() => {
 			if (diaries.value.length > 0) {
@@ -360,17 +430,16 @@ export default {
 			loading.value = true
 			try {
 				console.log('[Community] 开始加载日记，页码:', page)
-				const response = await api.get('/api/diaries/public', {
+				const response = await api.get('/api/community/diaries', {
 					params: { page, limit: pagination.value.limit }
 				})
 				
 				console.log('[Community] API响应:', response.data)
 				
 				if (response.data.success) {
-					diaries.value = response.data.data || []
-					pagination.value.page = page
-					pagination.value.total = response.data.total || 0
-					stats.value.totalDiaries = response.data.total || 0
+					diaries.value = response.data.diaries || []
+					pagination.value = response.data.pagination || { page, limit: pagination.value.limit, total: 0 }
+					stats.value.totalDiaries = response.data.pagination?.total || 0
 					
 					// 统计用户数（去重）
 					const uniqueUsers = new Set(diaries.value.map(d => d.user_id))
@@ -395,11 +464,26 @@ export default {
 			loadDiaries(page)
 		}
 
-		const selectDiary = (diary) => {
+	const selectDiary = async (diary) => {
 			selectedDiary.value = diary
 			selectedDiaryId.value = diary.diary_id
+			showComments.value = false
+			comments.value = []
+			newComment.value = ''
 			
 			// 如果日记有坐标，地图移动到该位置
+			
+			// 增加浏览量
+			try {
+				const newViewCount = await incrementView(diary.diary_id)
+				// 更新本地显示的浏览量
+				diary.view_count = newViewCount
+				if (selectedDiary.value.diary_id === diary.diary_id) {
+					selectedDiary.value.view_count = newViewCount
+				}
+			} catch (error) {
+				console.error('更新浏览量失败:', error)
+			}
 			if (diary.latitude && diary.longitude && communityMap.value && communityMap.value.map) {
 				try {
 					communityMap.value.map.panTo([diary.latitude, diary.longitude], { animate: false })
@@ -441,7 +525,88 @@ export default {
 			return date.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' })
 		}
 
+		// 点赞/取消点赞
+		const handleLike = async (diary) => {
+			console.log('[Community handleLike] isLoggedIn:', isLoggedIn.value)
+			console.log('[Community handleLike] store state:', store.state.auth)
+			
+			if (!isLoggedIn.value) {
+				alert('请先登录')
+				return
+			}
+			try {
+				console.log('[Community handleLike] 开始点赞，diary_id:', diary.diary_id)
+				const result = await toggleLike(diary.diary_id)
+				console.log('[Community handleLike] 点赞结果:', result)
+				// 更新本地状态
+				if (result.action === 'liked') {
+					likedDiaries.value.add(diary.diary_id)
+					diary.like_count = (diary.like_count || 0) + 1
+				} else {
+					likedDiaries.value.delete(diary.diary_id)
+					diary.like_count = Math.max(0, (diary.like_count || 0) - 1)
+				}
+				// 如果当前打开的是这个日记，也更新选中的日记
+				if (selectedDiary.value && selectedDiary.value.diary_id === diary.diary_id) {
+					selectedDiary.value.like_count = diary.like_count
+				}
+			} catch (error) {
+				console.error('点赞失败:', error)
+				alert(error.message || '点赞失败')
+			}
+		}
+
+		// 加载评论
+		const loadComments = async (diaryId) => {
+			try {
+				comments.value = await fetchComments(diaryId)
+			} catch (error) {
+				console.error('加载评论失败:', error)
+				comments.value = []
+			}
+		}
+
+		// 提交评论
+		const submitComment = async () => {
+			if (!isLoggedIn.value) {
+				alert('请先登录')
+				return
+			}
+			if (!newComment.value.trim()) {
+				alert('评论内容不能为空')
+				return
+			}
+			if (!selectedDiary.value) return
+
+			try {
+				await addComment(selectedDiary.value.diary_id, newComment.value)
+				newComment.value = ''
+				// 重新加载评论
+				await loadComments(selectedDiary.value.diary_id)
+				// 更新评论数
+				selectedDiary.value.comment_count = (selectedDiary.value.comment_count || 0) + 1
+				// 更新列表中的评论数
+				const diary = diaries.value.find(d => d.diary_id === selectedDiary.value.diary_id)
+				if (diary) {
+					diary.comment_count = selectedDiary.value.comment_count
+				}
+		} catch (error) {
+			console.error('评论失败:', error)
+			alert(error.message || '评论失败')
+		}
+	}
+
+		// 切换评论显示
+		const toggleComments = () => {
+			showComments.value = !showComments.value
+			if (showComments.value && selectedDiary.value) {
+				loadComments(selectedDiary.value.diary_id)
+			}
+		}
+
 		onMounted(() => {
+			console.log('[Community onMounted] Vuex auth state:', store.state.auth)
+			console.log('[Community onMounted] isLoggedIn:', isLoggedIn.value)
 			loadDiaries()
 		})
 
@@ -458,11 +623,19 @@ export default {
 			mapCenter,
 			mapMarkers,
 			communityMap,
+			comments,
+			newComment,
+			likedDiaries,
+			showComments,
 			loadPage,
 			selectDiary,
 			onMarkerClick,
 			fitMapBounds,
-			formatDate
+			formatDate,
+			handleLike,
+			loadComments,
+			submitComment,
+			toggleComments
 		}
 	}
 }
